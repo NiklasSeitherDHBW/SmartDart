@@ -6,8 +6,6 @@ from utils import camera, calibration, predict
 DEBUG = True
 
 if __name__ == "__main__":
-    template = cv2.imread('data/dartboard.jpg', 0)
-
     cam = camera.VideoStreamViewer(source=1)
     cam.open_connection()
     if not cam.isOpened():
