@@ -30,13 +30,13 @@ CAM_INDEX        = 1
 REFRESH_SEC      = 0.4
 MARGIN           = 1.5          # 10 % Luft um das Board
 THR_DIFF         = 40
-MIN_LINE_LEN     = 60
+MIN_LINE_LEN     = 30
 LINE_CENTER_TOL  = 15
 
 # ================================================== Hilfsfunktionen
 def fit_outer_ellipse(frame):
     #gray  = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    blur  = cv2.GaussianBlur(frame, (9, 9), 2)
+    blur  = cv2.GaussianBlur(frame, (5, 5), 5)
     v = np.median(blur)
     lo = int(max(0, 0.66 * v))
     hi = int(min(255, 1.33 * v))
@@ -76,12 +76,14 @@ def ellipse_to_homography(ell, margin=MARGIN):
 
 def detect_board_angle(warp):
     #gray  = cv2.cvtColor(warp, cv2.COLOR_BGR2GRAY)
-    blur  = cv2.GaussianBlur(warp, (5, 5), 2)
+    blur  = cv2.GaussianBlur(warp, (9, 9), 5)
     cv2.imshow("Blur", blur)           # Debug-Anzeige
-    v = np.median(blur)
+    v = np.mean(blur)
     lo = int(max(0, 0.66 * v))
     hi = int(min(255, 1.33 * v))
     edges = cv2.Canny(blur, lo, hi) 
+    
+    # edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, (10,10))
     
     cv2.imshow("Canny", edges)           # Debug-Anzeige
     
@@ -90,7 +92,7 @@ def detect_board_angle(warp):
 
     lines = cv2.HoughLinesP(edges, 1, np.pi/180, 120,
                             minLineLength=MIN_LINE_LEN,
-                            maxLineGap=10)
+                            maxLineGap=25)
     
     vis = warp.copy()
     best_len, best_ang = 0, 0
