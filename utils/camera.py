@@ -11,6 +11,11 @@ class VideoStreamViewer:
 
     def open_connection(self):
         self.cap = cv2.VideoCapture(self.source)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1200)
+        # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 800)
+        self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
+        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
+        self.cap.set(cv2.CAP_PROP_FPS, 1)
         
     def isOpened(self):
         return self.cap.isOpened()
