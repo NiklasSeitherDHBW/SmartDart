@@ -14,9 +14,18 @@ class VideoStreamViewer:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1200)
         # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 800)
         self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
-        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
-        self.cap.set(cv2.CAP_PROP_FPS, 1)
+
+        # Set manual exposure mode and reduce exposure value significantly
+        # Auto exposure mode = 0.75 (auto), 0.25 (manual)
+        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)  # Set to manual mode
+        # self.cap.set(cv2.CAP_PROP_EXPOSURE, -7.5)  # Negative values mean shorter exposure time
         
+        # Reduce gain if available
+        self.cap.set(cv2.CAP_PROP_GAIN, 0)
+        
+        self.cap.set(cv2.CAP_PROP_FPS, 1)
+        self.cap.set(cv2.CAP_PROP_GAMMA, 0.7)  # Lower gamma helps with overexposure
+
     def isOpened(self):
         return self.cap.isOpened()
 
@@ -58,6 +67,8 @@ class VideoStreamViewer:
         if not ret or frame is None:
             print("Failed to grab frame")
             return None
+
+        # frame = self.correct_overexposure(frame)
 
         return frame
 
