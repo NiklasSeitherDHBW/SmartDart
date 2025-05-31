@@ -7,18 +7,19 @@ if __name__ == "__main__":
     root_dir = Path("data/train/raw")
     print(root_dir.absolute())
     existing_files = [root_dir / f for f in os.listdir(root_dir) if f.endswith('.jpg')]
+
+    i = 3400
+    print(existing_files[i])
     
-    print(existing_files[0])
-    
-    cam = camera.VideoStreamViewer(source=existing_files[0])
+    cam = camera.VideoStreamViewer(source=existing_files[i])
     cam.open_connection()
     if not cam.isOpened():
         print("Camera not opened")
         exit(1)
         
-    predictor = predict.Predictor(model_path="models/yolo8n.pt")
+    calibrator = calibration.CameraCalibration(ref_img="data/dartboard-gerade.jpg", debug=True)
+    predictor = predict.Predictor(model_path="models/yolo8n-finetune.pt")
 
-    i = 0
     window_title = "Darts Annotation"  # Consistent window name
     processed = False
 
@@ -31,16 +32,20 @@ if __name__ == "__main__":
         # Get just the filename to display as text
         current_filename = existing_files[i].name
         display_frame = frame.copy()
-        display_frame = display_frame[32:591, 340:835]
+
+        #display_frame = display_frame[32:591, 340:835]
+        
+        display_frame = calibrator.warp_frame(display_frame)
+        display_frame = cv2.resize(display_frame, (800, 800))
         orig_frame_cropped = display_frame.copy()
 
         if not processed:
             # Predict and annotate the frame
             results = predictor.predict(display_frame)
             if results:
-                for result in results:
-                    display_frame = result.plot()
-                    # Add filename as text on the annotated frame
+                display_frame = results[0].plot()
+
+                # Add filename as text on the annotated frame
                 cv2.putText(display_frame, current_filename, (10, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
                 cv2.imshow(window_title, display_frame)
