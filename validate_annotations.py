@@ -60,7 +60,7 @@ def main():
     np.random.seed(42)
     colors = np.random.randint(0, 255, size=(100, 3), dtype=np.uint8).tolist()
     
-    i = 0
+    i = 750
     while i < len(image_files):
         image_path = image_files[i]
         # Load image
@@ -105,8 +105,18 @@ def main():
         key = cv2.waitKey(0) & 0xFF
         if key == ord('q'):
             break
-        elif key == ord('n'):
+        elif key == ord('g'):
             i += 1
+        elif key == ord('o'):
+            # Move the current image to "okay" folder
+            okay_folder = Path("data/train/okay")
+            new_path = okay_folder / image_path.name
+            image_path.rename(new_path)
+        elif key == ord('b'):
+            # Move the current image to "bad" folder
+            bad_folder = Path("data/train/bad")
+            new_path = bad_folder / image_path.name
+            image_path.rename(new_path)
         elif key == ord('p') and i > 0:
             i -= 1  # Go back to previous image
     
