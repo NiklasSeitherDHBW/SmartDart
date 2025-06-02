@@ -181,3 +181,6 @@ cython_debug/
 .cursorindexingignore
 
 runs/
+data/train/images
+data/train/labels.cache
+data/dataset.yaml
