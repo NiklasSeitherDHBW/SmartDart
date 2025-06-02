@@ -39,19 +39,6 @@ def setup_yolo_structure():
     
     train_images.mkdir(parents=True, exist_ok=True)
     
-    # Move images from 'good' to 'images' folder
-    good_folder = Path('training/data/train/good')
-    if good_folder.exists():
-        import shutil
-        
-        # Copy all images to the new structure
-        for img_file in good_folder.glob('*'):
-            if img_file.suffix.lower() in ['.jpg', '.jpeg', '.png']:
-                dest_file = train_images / img_file.name
-                if not dest_file.exists():
-                    shutil.copy2(img_file, dest_file)
-                    print(f"Copied {img_file.name} to images folder")
-    
     print(f"YOLO structure ready:")
     print(f"  Images: {train_images} ({len(list(train_images.glob('*')))} files)")
     print(f"  Labels: {train_labels} ({len(list(train_labels.glob('*.txt')))} files)")
@@ -63,7 +50,7 @@ def train_model():
     
     # Create dataset configuration
     dataset_config = create_dataset_yaml()    # Load pretrained model - Using YOLOv11 for better small object detection
-    model = YOLO('models/yolo8n.pt')
+    model = YOLO('models/yolo8n-pretrained.pt')
     
     # Use all available CPU cores for multiprocessing
     num_workers = os.cpu_count()
@@ -71,7 +58,7 @@ def train_model():
       # Train the model with optimized hyperparameters for dart detection
     results = model.train(
         data=str(dataset_config),
-        val=True, epochs=100, imgsz=800, workers=16, project="runs/train", name="DartDetector", lr0=0.00517, lrf=0.00761, momentum=0.90098, weight_decay=0.00038, warmup_epochs=1.94204, warmup_momentum=0.42999, box=2.99452, cls=0.30763, dfl=1.53753, hsv_h=0.00695, hsv_s=0.45949, hsv_v=0.24372, degrees=15.58584, translate=0.10067, scale=0.2181, shear=0.0, perspective=0.0, flipud=0.0, fliplr=0.31783, mosaic=0.61939, mixup=0.0, copy_paste=0.0, batch=-1, 
+        val=True, epochs=100, imgsz=800, workers=16, project="training/runs/train", name="DartDetector", lr0=0.00517, lrf=0.00761, momentum=0.90098, weight_decay=0.00038, warmup_epochs=1.94204, warmup_momentum=0.42999, box=2.99452, cls=0.30763, dfl=1.53753, hsv_h=0.00695, hsv_s=0.45949, hsv_v=0.24372, degrees=15.58584, translate=0.10067, scale=0.2181, shear=0.0, perspective=0.0, flipud=0.0, fliplr=0.31783, mosaic=0.61939, mixup=0.0, copy_paste=0.0, batch=-1, 
         verbose=True
     )
     

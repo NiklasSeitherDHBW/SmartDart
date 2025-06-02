@@ -1,9 +1,13 @@
 import cv2
 import os
 from pathlib import Path
-from utils import predict
 import numpy as np
 from collections import defaultdict
+
+import sys
+sys.path.append(str(Path(__file__).parent.parent))
+from utils import predict
+
 
 def create_yolo_annotation(image_path, results, output_dir):
     """
@@ -83,14 +87,14 @@ def create_yolo_annotation(image_path, results, output_dir):
 
 def main():
     # Paths
-    input_dir = Path("training/data/transferlearning/good")
-    output_dir = Path("training/data/transferlearning/labels")
+    input_dir = Path("training/data/transferlearning/stg3/good")
+    output_dir = Path("training/data/transferlearning/stg3/labels")
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize predictor
-    predictor = predict.Predictor(model_path="models/yolo8n.pt")
+    predictor = predict.Predictor(model_path="models/best.pt")
 
     # Get all image files
     image_files = list(input_dir.glob("*.jpg")) + list(input_dir.glob("*.png"))
@@ -98,10 +102,6 @@ def main():
     print(f"Found {len(image_files)} images to annotate")
 
     for i, image_path in enumerate(image_files):
-        if "3102" in image_path.name:
-            print("Switching model to finetuned version")
-            predictor = predict.Predictor(model_path="models/yolo8n-finetune.pt")
-        
         print(f"Processing {i+1}/{len(image_files)}: {image_path.name}")
         
         # Load image

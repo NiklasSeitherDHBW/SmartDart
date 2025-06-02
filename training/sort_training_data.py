@@ -22,7 +22,7 @@ if __name__ == "__main__":
         exit(1)
 
     calibrator = calibration.CameraCalibration(ref_img="resources/dartboard-gerade.jpg", debug=True)
-    predictor = predict.Predictor(model_path="training/runs/train/Yolo8n-finetune/weights/best.pt")
+    predictor = predict.Predictor(model_path="models/best.pt")
 
     window_title = "Darts Annotation"  # Consistent window name
     processed = False
