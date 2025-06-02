@@ -180,7 +180,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-runs/
-data/train/images
-data/train/labels.cache
-data/dataset.yaml
+training/runs/
+training/data/train/images
+training/data/train/labels.cache
+training/data/dataset.yaml
