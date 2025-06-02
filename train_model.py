@@ -1,6 +1,7 @@
 from ultralytics import YOLO
 from pathlib import Path
 import yaml
+import os
 
 def create_dataset_yaml():
     """Create dataset configuration file for YOLO training"""
@@ -61,37 +62,16 @@ def train_model():
     setup_yolo_structure()
     
     # Create dataset configuration
-    dataset_config = create_dataset_yaml()
-    
-    # Load pretrained model
+    dataset_config = create_dataset_yaml()    # Load pretrained model - Using YOLOv11 for better small object detection
     model = YOLO('models/yolo8n.pt')
     
-    # Train the model
+    # Use all available CPU cores for multiprocessing
+    num_workers = os.cpu_count()
+    print(f"Using {num_workers} workers for multiprocessing")
+      # Train the model with optimized hyperparameters for dart detection
     results = model.train(
         data=str(dataset_config),
-        epochs=100,
-        imgsz=640,
-        batch=16,
-        device='cuda',  # Change to 'cuda' if you have GPU
-        save=True,
-        project='runs/train',
-        name='dart_detector',
-        patience=10,
-        lr0=0.01,
-        lrf=0.01,
-        warmup_epochs=3,
-        warmup_momentum=0.8,
-        weight_decay=0.0005,
-        mixup=0.1,
-        copy_paste=0.1,
-        degrees=10.0,
-        translate=0.1,
-        scale=0.5,
-        shear=2.0,
-        perspective=0.0,
-        flipud=0.5,
-        fliplr=0.5,
-        mosaic=1.0,
+        val=True, epochs=100, imgsz=800, workers=16, project="runs/train", name="DartDetector", lr0=0.00517, lrf=0.00761, momentum=0.90098, weight_decay=0.00038, warmup_epochs=1.94204, warmup_momentum=0.42999, box=2.99452, cls=0.30763, dfl=1.53753, hsv_h=0.00695, hsv_s=0.45949, hsv_v=0.24372, degrees=15.58584, translate=0.10067, scale=0.2181, shear=0.0, perspective=0.0, flipud=0.0, fliplr=0.31783, mosaic=0.61939, mixup=0.0, copy_paste=0.0, batch=-1, 
         verbose=True
     )
     
