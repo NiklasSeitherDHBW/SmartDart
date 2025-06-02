@@ -50,7 +50,7 @@ def train_model():
     
     # Create dataset configuration
     dataset_config = create_dataset_yaml()    # Load pretrained model - Using YOLOv11 for better small object detection
-    model = YOLO('models/yolo8n-pretrained.pt')
+    model = YOLO('models/best.pt')
     
     # Use all available CPU cores for multiprocessing
     num_workers = os.cpu_count()
