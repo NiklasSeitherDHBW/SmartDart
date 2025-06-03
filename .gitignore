@@ -184,3 +184,4 @@ training/runs/
 training/data/train/images
 training/data/train/labels.cache
 training/data/dataset.yaml
+yolo*.pt
