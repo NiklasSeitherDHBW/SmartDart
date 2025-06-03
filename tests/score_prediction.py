@@ -737,7 +737,203 @@ def process_dartboard_images():
     cv2.destroyAllWindows()
     print("Image navigation ended")
 
-# Update the main entry point to use the multi-image version
+def load_dart_detections(label_path: str, image_width: int, image_height: int) -> List[Tuple[int, int]]:
+    """
+    Load dart detections from YOLO format labels.
+    
+    Args:
+        label_path: Path to the YOLO label file
+        image_width: Width of the corresponding image
+        image_height: Height of the corresponding image
+    
+    Returns:
+        List of (x, y) pixel coordinates for dart centers
+    """
+    dart_positions = []
+    
+    if not os.path.exists(label_path):
+        return dart_positions
+    
+    try:
+        with open(label_path, 'r') as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) >= 5:  # YOLO format: class_id, x, y, width, height
+                    class_id = int(parts[0])
+                    
+                    # Only process objects with class ID 4 (darts)
+                    if class_id == 4:
+                        center_x = float(parts[1]) * image_width
+                        center_y = float(parts[2]) * image_height
+                        dart_positions.append((int(center_x), int(center_y)))
+        
+        print(f"Loaded {len(dart_positions)} dart detections (class ID 4)")
+    except Exception as e:
+        print(f"Error loading dart detections: {e}")
+    
+    return dart_positions
+
+def process_dart_detections(image_path: str, dart_label_path: str, board_label_path: str = None):
+    """
+    Process an image with dart detections and calculate scores.
+    
+    Args:
+        image_path: Path to the dartboard image
+        dart_label_path: Path to the YOLO labels file containing dart detections
+        board_label_path: Optional path to board reference point labels
+    """
+    # Load the image
+    image = cv2.imread(image_path)
+    if image is None:
+        print(f"Could not load image: {image_path}")
+        return
+    
+    # Get image dimensions
+    height, width = image.shape[:2]
+    
+    # Load dartboard reference points if available
+    corner_points = []
+    if board_label_path and os.path.exists(board_label_path):
+        corner_points = load_yolo_labels(board_label_path, width, height)
+    
+    # If no specific board labels, try to use the same file for board points
+    # (assuming first few points might be board reference points)
+    if not corner_points and os.path.exists(dart_label_path):
+        # This is speculative - in a real system you'd need to differentiate
+        # between dart and board reference points based on class IDs
+        temp_points = load_yolo_labels(dart_label_path, width, height)
+        if len(temp_points) >= 3:
+            # Use first 3+ points as board reference
+            corner_points = temp_points[:3]
+    
+    # If we have enough points for board template
+    center = None
+    radius = 0
+    rotation = 0
+    result = image.copy()
+    
+    if len(corner_points) >= 3:
+        # Create dartboard template overlay
+        result = overlay_dartboard_template(image, corner_points, show_numbers=True)
+        
+        # Get dartboard parameters for scoring
+        transform_matrix, center, radius = calculate_dartboard_transform(corner_points, 400)
+        rotation = math.atan2(transform_matrix[1, 0], transform_matrix[0, 0])
+    
+    # Load dart detections
+    dart_positions = load_dart_detections(dart_label_path, width, height)
+    
+    # If we have dartboard template and dart detections, calculate scores
+    dart_scores = []
+    if center and radius > 0 and dart_positions:
+        for i, dart_pos in enumerate(dart_positions):
+            # Calculate score for this dart
+            score, description = calculate_dart_score(dart_pos, center, radius, rotation)
+            dart_scores.append((score, description))
+            
+            # Draw dart position
+            dart_color = (0, 0, 255)  # Red for darts
+            cv2.circle(result, dart_pos, 5, dart_color, -1)
+            cv2.line(result, center, dart_pos, dart_color, 1, cv2.LINE_AA)
+            
+            # Show score near the dart
+            score_text = f"{score} ({description})"
+            text_pos = (dart_pos[0] + 10, dart_pos[1])
+            cv2.putText(result, score_text, text_pos, 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, dart_color, 2)
+    
+    # If we have scores, display total
+    if dart_scores:
+        total_score = sum(score for score, _ in dart_scores)
+        total_text = f"Total Score: {total_score}"
+        cv2.putText(result, total_text, (10, 150), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+    
+    return result, dart_scores
+
+def process_yolo_detections_folder(dart_images_folder: str = "training/data/transferlearning/stg1/good",
+                                 dart_labels_folder: str = "training/data/transferlearning/stg1/labels",
+                                 board_labels_folder: str = None):
+    """
+    Process a folder of images with YOLO dart detections.
+    
+    Args:
+        dart_images_folder: Path to folder with dartboard images
+        dart_labels_folder: Path to folder with dart detection labels
+        board_labels_folder: Optional path to folder with board reference labels
+    """
+    # Find all image files
+    image_extensions = ['*.jpg', '*.jpeg', '*.png', '*.bmp']
+    image_files = []
+    
+    for ext in image_extensions:
+        image_files.extend(glob.glob(os.path.join(dart_images_folder, ext)))
+    
+    if not image_files:
+        print(f"No image files found in {dart_images_folder}")
+        return
+    
+    # Sort images for consistent navigation
+    image_files.sort()
+    print(f"Found {len(image_files)} images with dart detections")
+    
+    # Start with the first image
+    current_idx = 0
+    window_name = 'Dart Score Prediction'
+    
+    while True:
+        # Get current image path
+        image_path = image_files[current_idx]
+        image_name = os.path.splitext(os.path.basename(image_path))[0]
+        
+        # Find corresponding dart label file
+        dart_label_path = os.path.join(dart_labels_folder, f"{image_name}.txt")
+        
+        # Find board label file if a separate folder is specified
+        board_label_path = None
+        if board_labels_folder:
+            board_label_path = os.path.join(board_labels_folder, f"{image_name}.txt")
+            if not os.path.exists(board_label_path):
+                board_label_path = None
+        
+        print(f"\nProcessing image {current_idx+1}/{len(image_files)}: {image_name}")
+        
+        # Process the image with dart detections
+        result, dart_scores = process_dart_detections(image_path, dart_label_path, board_label_path)
+        
+        # Add image navigation info
+        filename_text = f"File: {os.path.basename(image_path)} [{current_idx+1}/{len(image_files)}]"
+        cv2.putText(result, filename_text, (10, 30), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        
+        nav_text = "Navigation: Right/d = next, Left/a = previous, ESC = exit, r = reset"
+        cv2.putText(result, nav_text, (10, result.shape[0] - 20), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        
+        # Display result
+        cv2.imshow(window_name, result)
+        
+        # Wait for key press
+        key = cv2.waitKey(0) & 0xFF
+        
+        # Navigation controls
+        if key == 27:  # ESC key - exit
+            break
+        elif key == 83 or key == ord('n') or key == ord('d'):  # Right arrow or 'n' or 'd' - next image
+            current_idx += 1
+        elif key == 81 or key == ord('p') or key == ord('a'):  # Left arrow or 'p' or 'a' - previous image
+            current_idx -= 1
+    
+    cv2.destroyAllWindows()
+    print("YOLO dart detection processing completed")
+
+# Update the main entry point with an option for YOLO dart detection processing
 if __name__ == "__main__":
-    # Process multiple dartboard images with navigation
-    process_dartboard_images()
+    # Check if we should process YOLO dart detections
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "darts":
+        # Process YOLO dart detections
+        process_yolo_detections_folder()
+    else:
+        # Default: process dartboard template fitting
+        process_dartboard_images()
