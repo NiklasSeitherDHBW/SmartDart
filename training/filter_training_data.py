@@ -361,6 +361,9 @@ def main():
     # Configuration
     start_index = 0  # You can modify this to resume from a specific index
     data_root = Path("training/data/train")
+
+    Path(data_root / "okay_images").mkdir(parents=True, exist_ok=True)
+    Path(data_root / "okay_labels").mkdir(parents=True, exist_ok=True)
     
     # Add parent directory to path for utils import (if needed)
     sys.path.append(str(Path(__file__).parent.parent))
