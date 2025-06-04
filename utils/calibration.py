@@ -10,27 +10,65 @@ class CameraCalibration:
             if self.ref_img is None:
                 raise ValueError(f"Could not load reference image: {ref_img}")
 
-        self.orb = cv2.ORB_create(1000)
-        self.kps_ref, self.des_ref = self.orb.detectAndCompute(self.ref_img, None)
-        
-        self.bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+        self.sift = cv2.SIFT_create(
+            nfeatures=500,           # More features for better matching
+            contrastThreshold=0.04,  # Lower threshold = more features
+            edgeThreshold=10,        # Reduce edge features
+            sigma=1.6               # Standard sigma
+        )
+
+        self.H = None
+
+
+    def initial_calibration(self, frame):
+        src_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        ref_gray = cv2.cvtColor(self.ref_img, cv2.COLOR_BGR2GRAY)
+
+        kps1, des1 = self.sift.detectAndCompute(src_gray, None)
+        kps2, des2 = self.sift.detectAndCompute(ref_gray, None)
+
+        FLANN_INDEX_KDTREE = 1
+        index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+        search_params = dict(checks=50)
+        flann = cv2.FlannBasedMatcher(index_params, search_params)
+
+        matches = flann.knnMatch(des1, des2, k=2)
+
+        # Apply Lowe's ratio test
+        good_matches = []
+        for match_pair in matches:
+            if len(match_pair) == 2:
+                m, n = match_pair
+                if m.distance < 0.7 * n.distance or True:  # Ratio test threshold
+                    good_matches.append(m)
+
+        # Sort by distance and limit matches
+        good_matches = sorted(good_matches, key=lambda x: x.distance)[:100]
+
+        pts_src = np.float32([kps1[m.queryIdx].pt for m in good_matches])
+        pts_ref = np.float32([kps2[m.trainIdx].pt for m in good_matches])
+
+        self.H, mask = cv2.findHomography(
+            pts_src, pts_ref, 
+            cv2.RANSAC, 
+            ransacReprojThreshold=3.0,  # Tighter threshold for better precision
+            maxIters=2000,              # More iterations for better results
+            confidence=0.99             # Higher confidence
+        )
+
+        if self.H is None:
+            return False, "Could not compute homography!"
+
+        h, w = self.ref_img.shape[:2]
+        warped = cv2.warpPerspective(frame, self.H, (w, h))
+        return True, warped
+
 
     def warp_frame(self, frame):
         if frame is None:
             raise ValueError("Frame cannot be None")
 
-        kps_frame, des_frame = self.orb.detectAndCompute(frame, None)
-        if des_frame is None or self.des_ref is None:
-            return None, None
-
-        matches = self.bf.match(des_frame, self.des_ref)
-        matches = sorted(matches, key=lambda x: x.distance)[:80]
-
-        pts_src = np.float32([kps_frame[m.queryIdx].pt for m in matches])
-        pts_ref = np.float32([self.kps_ref[m.trainIdx].pt for m in matches])
-        H, _ = cv2.findHomography(pts_src, pts_ref, cv2.RANSAC, 5.0)
-        
         h, w = self.ref_img.shape[:2]
-        warped = cv2.warpPerspective(frame, H, (w, h))
+        warped = cv2.warpPerspective(frame, self.H, (w, h))
         
         return warped
