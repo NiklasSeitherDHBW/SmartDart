@@ -57,7 +57,38 @@ class CameraCalibration:
         )
 
         if self.H is None:
-            return False, "Could not compute homography!"
+            return False, "Could not compute homography!"        
+        
+        if self.debug:
+            # Zeige SIFT Keypoints als Kreise
+            img1_with_keypoints = cv2.drawKeypoints(frame, kps1, None, 
+                                                   color=(0, 255, 0), 
+                                                   flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            img2_with_keypoints = cv2.drawKeypoints(self.ref_img, kps2, None, 
+                                                   color=(0, 255, 0), 
+                                                   flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            
+            # Resize images for better display on dual monitors
+            display_size = (640, 480)  # Smaller size to fit multiple windows
+            
+            img1_resized = cv2.resize(img1_with_keypoints, display_size)
+            img2_resized = cv2.resize(img2_with_keypoints, display_size)
+            
+            # Zeige beide Bilder mit Keypoints als Kreise
+            cv2.imshow("Source Frame Keypoints", img1_resized)
+            cv2.imshow("Reference Image Keypoints", img2_resized)
+            
+            # Optional: Zeige auch die Matches mit Linien
+            matches_img = cv2.drawMatches(
+                self.ref_img, kps2, 
+                frame, kps1, 
+                good_matches, None, 
+                flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
+            )
+            
+            # Resize matches image (it's wider, so different aspect ratio)
+            matches_resized = cv2.resize(matches_img, (1280, 720))
+            cv2.imshow("Feature Matches", matches_resized)
 
         h, w = self.ref_img.shape[:2]
         warped = cv2.warpPerspective(frame, self.H, (w, h))
