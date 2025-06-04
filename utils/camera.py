@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from pathlib import Path
 
 
 class VideoStreamViewer:
@@ -9,78 +10,66 @@ class VideoStreamViewer:
         self.width = target_width
         self.cap = None
 
-    def open_connection(self):
-        self.cap = cv2.VideoCapture(self.source)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1200)
-        # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 800)
-        self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
+        self.source_is_folder = isinstance(source, Path)
+        self.images = None
 
-        # Set manual exposure mode and reduce exposure value significantly
-        # Auto exposure mode = 0.75 (auto), 0.25 (manual)
-        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)  # Set to manual mode
-        # self.cap.set(cv2.CAP_PROP_EXPOSURE, -7.5)  # Negative values mean shorter exposure time
-        
-        # Reduce gain if available
-        self.cap.set(cv2.CAP_PROP_GAIN, 0)
-        
-        self.cap.set(cv2.CAP_PROP_FPS, 1)
-        self.cap.set(cv2.CAP_PROP_GAMMA, 0.7)  # Lower gamma helps with overexposure
+
+    def open_connection(self):
+        if self.source_is_folder:
+            # If source is a folder, use the first image in the folder
+            self.images = list(Path(self.source).glob("*.jpg")) + list(Path(self.source).glob("*.png"))
+            if not self.images:
+                raise ValueError(f"No images found in folder: {self.source}")
+        else:
+            self.cap = cv2.VideoCapture(self.source)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1200)
+            # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 800)
+            self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
+
+            # Set manual exposure mode and reduce exposure value significantly
+            # Auto exposure mode = 0.75 (auto), 0.25 (manual)
+            self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)  # Set to manual mode
+            # self.cap.set(cv2.CAP_PROP_EXPOSURE, -7.5)  # Negative values mean shorter exposure time
+            
+            # Reduce gain if available
+            self.cap.set(cv2.CAP_PROP_GAIN, 0)
+            
+            self.cap.set(cv2.CAP_PROP_FPS, 1)
+            self.cap.set(cv2.CAP_PROP_GAMMA, 0.7)  # Lower gamma helps with overexposure
 
     def isOpened(self):
+        if self.source_is_folder:
+            return len(self.images) > 0
         return self.cap.isOpened()
 
     def release(self):
+        if self.source_is_folder:
+            self.images = None
+            return None
         return self.cap.release()
-
-    def resize_frame_fixed(self, frame):
-        """Resize and pad the frame to fixed width and height (letterbox)."""
-        # Get original dimensions
-        h, w = frame.shape[:2]
-        # Compute scale factor and new size
-        scale = min(self.width / w, self.height / h)
-        new_w = int(w * scale)
-        new_h = int(h * scale)
-
-        # Resize frame
-        resized = cv2.resize(frame, (new_w, new_h))
-
-        # Create a black image and paste the resized frame centered
-        new_frame = np.zeros(
-            (self.height, self.width, 3), dtype=np.uint8)
-        y_offset = (self.height - new_h) // 2
-        x_offset = (self.width - new_w) // 2
-        new_frame[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
-
-        return new_frame
-
-    def resize_frame_keep_ratio(self, frame):
-        """Resize frame to width, keep aspect ratio."""
-        h, w = frame.shape[:2]
-        scale = self.width / w
-        new_h = int(h * scale)
-        resized = cv2.resize(frame, (self.width, new_h))
-        return resized
 
     def get_frame_raw(self):
         """Capture a frame from the video stream."""
-        ret, frame = self.cap.read()
-        if not ret or frame is None:
-            print("Failed to grab frame")
-            return None
+        if self.source_is_folder:
+            if not self.images:
+                print("No images available in the folder.")
+                return None
+            
+            # Read the next image from the list
+            img_path = self.images.pop(0)
+            frame = cv2.imread(str(img_path))
+            if frame is None:
+                print(f"Failed to read image: {img_path}")
+                return None
+            
+            # Resize if target dimensions are specified
+            if self.height and self.width:
+                frame = cv2.resize(frame, (self.width, self.height))
 
-        # frame = self.correct_overexposure(frame)
+        else:
+            ret, frame = self.cap.read()
+            if not ret or frame is None:
+                print("Failed to grab frame")
+                return None
 
         return frame
-
-    def get_frame_resized(self):
-        """Capture a frame and resize it."""
-        frame = self.get_frame_raw()
-        if frame is None:
-            return None
-
-        if self.height is not None and self.width is not None:
-            return self.resize_frame_fixed(frame)
-        elif self.width is not None:
-            return self.resize_frame_keep_ratio(frame)
-        else:
-            return frame
