@@ -21,6 +21,8 @@ class CameraCalibration:
 
 
     def initial_calibration(self, frame):
+        self.H = None
+
         src_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         ref_gray = cv2.cvtColor(self.ref_img, cv2.COLOR_BGR2GRAY)
 
@@ -57,7 +59,7 @@ class CameraCalibration:
         )
 
         if self.H is None:
-            return False, "Could not compute homography!"        
+            return False, "Could not compute homography!"
         
         if self.debug:
             # Zeige SIFT Keypoints als Kreise
@@ -80,14 +82,14 @@ class CameraCalibration:
             
             # Optional: Zeige auch die Matches mit Linien
             matches_img = cv2.drawMatches(
-                self.ref_img, kps2, 
-                frame, kps1, 
+                frame, kps1,           # Source frame first (queryIdx)
+                self.ref_img, kps2,    # Reference image second (trainIdx)
                 good_matches, None, 
                 flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
             )
             
             # Resize matches image (it's wider, so different aspect ratio)
-            matches_resized = cv2.resize(matches_img, (1280, 720))
+            matches_resized = cv2.resize(matches_img, (1600, 800))
             cv2.imshow("Feature Matches", matches_resized)
 
         h, w = self.ref_img.shape[:2]
