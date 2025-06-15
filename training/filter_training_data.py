@@ -360,7 +360,7 @@ def main():
     """Main entry point."""
     # Configuration
     start_index = 0  # You can modify this to resume from a specific index
-    data_root = Path("training/data/train")
+    data_root = Path("training/data/transferlearning/Test2/stg1")
 
     Path(data_root / "okay_images").mkdir(parents=True, exist_ok=True)
     Path(data_root / "okay_labels").mkdir(parents=True, exist_ok=True)
