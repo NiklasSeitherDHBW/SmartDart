@@ -228,19 +228,6 @@ class AnnotationSorter:
                 if self.copy_image_to_folder(image_path, self.bad_dir):
                     self.current_index += 1
                     
-            elif key == ord('n') or key == ord(' '):
-                # Skip to next
-                print(f"Skipped {filename}")
-                self.current_index += 1
-                
-            elif key == ord('p'):
-                # Go to previous
-                if self.current_index > 0:
-                    self.current_index -= 1
-                    print("Going to previous image...")
-                else:
-                    print("Already at first image!")
-                    
             elif key == ord('q') or key == 27:  # 'q' or Escape
                 print("Quitting...")
                 break
