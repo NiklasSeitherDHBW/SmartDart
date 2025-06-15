@@ -13,12 +13,18 @@ if __name__ == "__main__":
         exit(1)
 
     calib = calibration.CameraCalibration(ref_img="resources/dartboard-gerade.jpg", debug=DEBUG)
-    predictor = predict.Predictor(model_path="models/stg4.pt")
+    predictor = predict.Predictor(model_path="training/runs/train/PerfectTrainingdata-pretrained/weights/best.pt")
     
     # Initialize dartboard score predictor
     score_predictor = score_prediction.DartboardScorePredictor()
 
     frame = cv2.imread("training/data/transferlearning/stg1/raw/00251.jpg")
+    for i in range(2500):
+        frame = cam.get_frame_raw()
+        if frame is None:
+            print("Failed to load initial frame")
+            exit(1)
+    frame = cam.get_frame_raw()
     if frame is None:
         print("Failed to grab frame")
         exit(1)
@@ -41,6 +47,12 @@ if __name__ == "__main__":
         if frame is None:
             print("Failed to grab frame")
             break
+
+        calib = calibration.CameraCalibration(ref_img="resources/dartboard-gerade.jpg", debug=False)
+        success, result = calib.initial_calibration(frame)
+        if not success:
+            print(f"Calibration failed: {result}")
+            continue
         
         frame = calib.warp_frame(frame)
         if frame is None:
@@ -48,7 +60,7 @@ if __name__ == "__main__":
             continue
 
         if DEBUG:
-            cv2.imshow("Warped Frame", frame)
+            cv2.imshow("Warped Frame", cv2.resize(frame, (800, 800)))
 
         # Run YOLO prediction
         results = predictor.predict(frame)
@@ -110,10 +122,10 @@ if __name__ == "__main__":
             # Show original YOLO annotations
             for result in results:
                 annotated = result.plot()
-                cv2.imshow("YOLO Detections", annotated)
+                cv2.imshow("YOLO Detections", cv2.resize(annotated, (800, 800)))
             
             # Show dartboard analysis
-            cv2.imshow("Dartboard Analysis", display_frame)
+            cv2.imshow("Dartboard Analysis", cv2.resize(display_frame, (800, 800)))
 
         key = cv2.waitKey(0) & 0xFF
         if key == ord('q'):
