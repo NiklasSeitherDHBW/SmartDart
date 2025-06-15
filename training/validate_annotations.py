@@ -35,8 +35,8 @@ def count_classes(boxes):
     return class_counts
 
 def main():
-    image_dir = Path("training/data/transferlearning/Test2/stg1/good")
-    label_dir = Path("training/data/transferlearning/Test2/stg1/labels")
+    image_dir = Path("training/data/transferlearning/Test2/stg2/good")
+    label_dir = Path("training/data/transferlearning/Test2/stg2/labels")
     
     # Class mapping:
     # Class 0 is "20", 1 is "3", 2 is "11", 3 is "6", 4 is "dart", 5 is "9" and 6 is "15"
@@ -138,18 +138,6 @@ def main():
         elif key == ord('c'):
             show_circles = not show_circles
             continue  # Redraw current image
-        elif key == ord('o'):
-            # Move the current image to "okay" folder
-            okay_folder = Path("training/data/transferlearning/stg3/okay")
-            new_path = okay_folder / image_path.name
-            image_path.rename(new_path)
-            i += 1
-        elif key == ord('d'):
-            # Move the current image to "bad" folder
-            bad_folder = Path("training/data/transferlearning/stg3/bad")
-            new_path = bad_folder / image_path.name
-            image_path.rename(new_path)
-            i += 1
         elif key == ord('p') and i > 0:
             i -= 1  # Go back to previous image
     

@@ -94,7 +94,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize predictor
-    predictor = predict.Predictor(model_path="models/Test2-stg1.pt")
+    predictor = predict.Predictor(model_path="models/Test2-stg1-2.pt")
 
     # Get all image files
     image_files = list(input_dir.glob("*.jpg")) + list(input_dir.glob("*.png"))

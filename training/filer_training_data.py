@@ -309,9 +309,9 @@ class AnnotationSorter:
 
 def main():
     # Configuration
-    MODEL_PATH = Path("models/Test2-stg1-2.pt")
-    RAW_IMAGES_DIR = Path("training/data/transferlearning/Test2/stg2/raw")
-    BASE_OUTPUT_DIR = Path("training/data/transferlearning/Test2/stg2")
+    MODEL_PATH = Path("models/Test2-stg2-2.pt")
+    RAW_IMAGES_DIR = Path("training/data/transferlearning/Test2/stg3/raw")
+    BASE_OUTPUT_DIR = Path("training/data/transferlearning/Test2/stg3")
 
     Path(BASE_OUTPUT_DIR / "good").mkdir(parents=True, exist_ok=True)
     Path(BASE_OUTPUT_DIR / "okay").mkdir(parents=True, exist_ok=True)
