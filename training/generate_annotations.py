@@ -79,22 +79,22 @@ def create_yolo_annotation(image_path, results, output_dir):
     # Write filtered detections to file
     with open(annotation_path, 'w') as f:
         for detection in filtered_detections:
-            f.write(f"{detection['class_id']} {detection['center_x']:.6f} "
-                   f"{detection['center_y']:.6f} {detection['width']:.6f} "
-                   f"{detection['height']:.6f}\n")
+            f.write(f"{detection['class_id']} {detection['center_x']} "
+                   f"{detection['center_y']} {detection['width']} "
+                   f"{detection['height']}\n")
     
     return len(filtered_detections)
 
 def main():
     # Paths
-    input_dir = Path("training/data/transferlearning/stg3/good")
-    output_dir = Path("training/data/transferlearning/stg3/labels")
+    input_dir = Path("training/data/transferlearning/Test2/stg2/good")
+    output_dir = Path("training/data/transferlearning/Test2/stg2/labels")
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize predictor
-    predictor = predict.Predictor(model_path="models/best.pt")
+    predictor = predict.Predictor(model_path="models/Test2-stg1.pt")
 
     # Get all image files
     image_files = list(input_dir.glob("*.jpg")) + list(input_dir.glob("*.png"))
@@ -109,7 +109,7 @@ def main():
         if image is None:
             print(f"Failed to load {image_path}")
             continue
-        
+
         # Predict
         results = predictor.predict(image)
         

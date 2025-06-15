@@ -13,8 +13,8 @@ def create_dataset_yaml():
         "path": str(
             Path.cwd() / "training" / "data" / "train"
         ),  # Point to train folder
-        "train": "images",  # Images subfolder
-        "val": "images",  # Using same data for validation
+        "train": "images/train",  # Images subfolder
+        "val": "images/val",  # Using same data for validation
         "nc": len(classes),
         "names": [classes[i] for i in range(len(classes))],
     }
@@ -48,21 +48,21 @@ def train_model():
     # Create dataset configuration
     dataset_config = (
         create_dataset_yaml()
-    )  # Load pretrained model - Using YOLOv11 for better small object detection
-    model = YOLO("models/best.pt")
+    ) 
+    model = YOLO("yolo11n.pt")
 
     # Use all available CPU cores for multiprocessing
     num_workers = os.cpu_count()
     print(f"Using {num_workers} workers for multiprocessing")
-    # Train the model with optimized hyperparameters for dart detection
+
     results = model.train(
         data=str(dataset_config),
         val=True,
-        epochs=100,
+        epochs=150,
         imgsz=800,
         workers=16,
-        project="training/runs/train",
-        name="DartDetector",
+        project="training/runs",
+        name="DartDetector-Test2-stg2-",
         lr0=0.00517,
         lrf=0.00761,
         momentum=0.90098,
@@ -89,7 +89,7 @@ def train_model():
         verbose=True,
     )
 
-    print(f"Training completed! Best model saved at: {results.save_dir}")
+    print(f"Training completed!")
     return results
 
 

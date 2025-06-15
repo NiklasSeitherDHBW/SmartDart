@@ -54,6 +54,67 @@ class AnnotationSorter:
         self.show_boxes = True
         self.show_circles = True
         
+    def filter_detections(self, results):
+        """
+        Filter detections to keep only top 3 for class 4 and top 1 for other classes.
+        
+        Args:
+            results: YOLO prediction results
+            
+        Returns:
+            Filtered results
+        """
+        if len(results) == 0:
+            return results
+        
+        result = results[0]
+        if result.boxes is None or len(result.boxes) == 0:
+            return results
+        
+        boxes = result.boxes.cpu().numpy()
+        
+        # Group detections by class
+        class_detections = {}
+        for i, box in enumerate(boxes):
+            class_id = int(box.cls[0])
+            confidence = float(box.conf[0])
+            
+            if class_id not in class_detections:
+                class_detections[class_id] = []
+            
+            class_detections[class_id].append((i, confidence))
+        
+        # Filter detections per class
+        keep_indices = []
+        for class_id, detections in class_detections.items():
+            # Sort by confidence (highest first)
+            detections.sort(key=lambda x: x[1], reverse=True)
+            
+            # Keep top 3 for class 4, top 1 for others
+            limit = 3 if class_id == 4 else 1
+            keep_indices.extend([idx for idx, _ in detections[:limit]])
+        
+        # Create filtered boxes
+        if keep_indices:
+            # Sort indices to maintain original order
+            keep_indices.sort()
+            
+            # Filter the boxes tensor
+            filtered_boxes = result.boxes[keep_indices]
+            
+            # Create new result with filtered boxes
+            from copy import deepcopy
+            filtered_result = deepcopy(result)
+            filtered_result.boxes = filtered_boxes
+            
+            return [filtered_result]
+        else:
+            # No detections to keep
+            from copy import deepcopy
+            filtered_result = deepcopy(result)
+            filtered_result.boxes = None
+            return [filtered_result]
+    
     def draw_predictions(self, image, results):
         """
         Use Ultralytics' built-in visualization to draw YOLO predictions on the image,
@@ -73,7 +134,7 @@ class AnnotationSorter:
             if self.show_boxes:
                 # Use Ultralytics' built-in plot method for better visualization
                 annotated_image = result.plot(
-                    conf=False,          # Show confidence scores
+                    conf=False,         # Show confidence scores
                     labels=True,        # Show class labels
                     boxes=True,         # Show bounding boxes
                     line_width=3,       # Line thickness
@@ -159,7 +220,7 @@ class AnnotationSorter:
                 self.current_index += 1
                 continue
             
-            success, image = self.calib.initial_calibration(image)
+            success, image = True, image # self.calib.initial_calibration(image)
             if not success:
                 # Display black image if calibration fails and tell user that it failed
                 print(f"Calibration failed for image: {image_path}. Skipping...")
@@ -167,10 +228,15 @@ class AnnotationSorter:
                 cv2.putText(image, "Calibration failed", (50, 50),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                 results = []  # No predictions for failed calibration
-            else:
-                # Get predictions
+            else:                # Get predictions
                 print("Generating predictions...")
                 results = self.predictor.predict(image)
+            
+            # Filter detections to keep only top 3 for class 4 and top 1 for other classes
+            results = self.filter_detections(results)
+            
+            # Filter detections to keep only top 3 for class 4 and top 1 for other classes
+            results = self.filter_detections(results)
             
             # Inner loop for handling display and toggles without re-prediction
             while True:
@@ -187,7 +253,7 @@ class AnnotationSorter:
                 cv2.putText(annotated_image, toggle_text, (10, 60), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
                 
-                control_text = "g=good, o=okay, b=bad, x=boxes, c=circles, n/space=skip, p=prev, q=quit"
+                control_text = "g=good, o=okay, b=bad, x=toggle boxes, c=toggle circles, n/space=skip, p=prev, q=quit"
                 cv2.putText(annotated_image, control_text, (10, annotated_image.shape[0] - 20), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
                 
@@ -243,9 +309,9 @@ class AnnotationSorter:
 
 def main():
     # Configuration
-    MODEL_PATH = Path("models/stg4.pt")
-    RAW_IMAGES_DIR = Path("training/data/transferlearning/Test2/stg1/raw")
-    BASE_OUTPUT_DIR = Path("training/data/transferlearning/Test2/stg1")
+    MODEL_PATH = Path("models/Test2-stg1-2.pt")
+    RAW_IMAGES_DIR = Path("training/data/transferlearning/Test2/stg2/raw")
+    BASE_OUTPUT_DIR = Path("training/data/transferlearning/Test2/stg2")
 
     Path(BASE_OUTPUT_DIR / "good").mkdir(parents=True, exist_ok=True)
     Path(BASE_OUTPUT_DIR / "okay").mkdir(parents=True, exist_ok=True)

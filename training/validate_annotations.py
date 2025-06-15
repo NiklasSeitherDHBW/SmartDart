@@ -35,8 +35,8 @@ def count_classes(boxes):
     return class_counts
 
 def main():
-    image_dir = Path("training/data/transferlearning/stg3/good")
-    label_dir = Path("training/data/transferlearning/stg3/labels")
+    image_dir = Path("training/data/transferlearning/Test2/stg1/good")
+    label_dir = Path("training/data/transferlearning/Test2/stg1/labels")
     
     # Class mapping:
     # Class 0 is "20", 1 is "3", 2 is "11", 3 is "6", 4 is "dart", 5 is "9" and 6 is "15"
@@ -51,10 +51,21 @@ def main():
     }
     DART_CLASS_ID = 4
     
+    # Toggle states for display
+    show_boxes = True
+    show_circles = True
+    
     image_files = list(image_dir.glob("*.jpg")) + list(image_dir.glob("*.png"))
     
     print(f"Found {len(image_files)} images to validate")
-    print("Press 'n' for next image, 'p' for previous, 'q' to quit")
+    print("Controls:")
+    print("  'n' - next image")
+    print("  'p' - previous image") 
+    print("  'b' - toggle bounding boxes")
+    print("  'c' - toggle center circles")
+    print("  'o' - move to okay folder")
+    print("  'd' - move to bad folder")
+    print("  'q' - quit")
     
     # Create a colormap for different classes
     np.random.seed(42)
@@ -79,16 +90,25 @@ def main():
         class_counts = count_classes(boxes)
         dart_count = sum(1 for class_id, _, _, _, _ in boxes if class_id == DART_CLASS_ID)
         
-        # Draw bounding boxes
+        # Draw bounding boxes and circles
         display_image = image.copy()
         for class_id, x1, y1, x2, y2 in boxes:
             color = colors[class_id]
-            cv2.rectangle(display_image, (x1, y1), (x2, y2), color, 2)
             
-            # Get proper class name from mapping
-            label = class_names.get(class_id, f"Unknown {class_id}")
-            cv2.putText(display_image, label, (x1, y1-10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            # Draw bounding box if enabled
+            if show_boxes:
+                cv2.rectangle(display_image, (x1, y1), (x2, y2), color, 2)
+                
+                # Get proper class name from mapping
+                label = class_names.get(class_id, f"Unknown {class_id}")
+                cv2.putText(display_image, label, (x1, y1-10),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            
+            # Draw center circle if enabled
+            if show_circles:
+                center_x = (x1 + x2) // 2
+                center_y = (y1 + y2) // 2
+                cv2.circle(display_image, (center_x, center_y), 5, color, -1)  # Filled circle                cv2.circle(display_image, (center_x, center_y), 5, (255, 255, 255), 1)  # White border
         
         # Add filename and stats to image
         cv2.putText(display_image, f"{image_path.name}", (10, 30),
@@ -100,23 +120,36 @@ def main():
         cv2.putText(display_image, f"Darts: {dart_count}", (10, 85),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         
+        # Display toggle states
+        box_status = "ON" if show_boxes else "OFF"
+        circle_status = "ON" if show_circles else "OFF"
+        cv2.putText(display_image, f"Boxes: {box_status} | Circles: {circle_status}", (10, 110),                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        
         cv2.imshow("Validation", display_image)
         
         key = cv2.waitKey(0) & 0xFF
         if key == ord('q'):
             break
-        elif key == ord('g'):
+        elif key == ord('n'):
             i += 1
+        elif key == ord('b'):
+            show_boxes = not show_boxes
+            continue  # Redraw current image
+        elif key == ord('c'):
+            show_circles = not show_circles
+            continue  # Redraw current image
         elif key == ord('o'):
             # Move the current image to "okay" folder
             okay_folder = Path("training/data/transferlearning/stg3/okay")
             new_path = okay_folder / image_path.name
             image_path.rename(new_path)
-        elif key == ord('b'):
+            i += 1
+        elif key == ord('d'):
             # Move the current image to "bad" folder
             bad_folder = Path("training/data/transferlearning/stg3/bad")
             new_path = bad_folder / image_path.name
             image_path.rename(new_path)
+            i += 1
         elif key == ord('p') and i > 0:
             i -= 1  # Go back to previous image
     
