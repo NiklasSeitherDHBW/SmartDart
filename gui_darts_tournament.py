@@ -272,6 +272,7 @@ class DartsGUI:
         # Dart-Detection Cache für konsistente Anzeige
         self.last_dart_positions = []       # Für Anzeige zwischen Frames
         self.processed_dart_positions = []  # Für Anti-Duplikat-Logik
+        self.blacklisted_dart_positions = []  # Für gesamten Zug ignorierte Dart-Positionen
         self.last_dart_scores = []
         
         # Dart-Erkennung Stabilisierung
@@ -288,6 +289,7 @@ class DartsGUI:
         self.turn_complete_cooldown_duration = 300  # 10 Sekunden bei 30 FPS
         self.board_empty_check_frames = 0  # Frames ohne Dart-Erkennung
         self.board_empty_required_frames = 30  # 1 Sekunde ohne Darts = Board leer
+        self.turn_ready_to_complete = False  # Flag dass Runde bereit zum Abschluss ist
         
         # Create GUI
         self.setup_gui()
@@ -519,7 +521,7 @@ class DartsGUI:
         """Computer Vision Komponenten einrichten."""
         try:
             # Initialize components but don't start camera yet
-            self.predictor = predict.Predictor(model_path="models/Test2-stg2-2.pt")
+            self.predictor = predict.Predictor(model_path="models/stg4.pt")
             self.score_predictor = score_prediction.DartboardScorePredictor()
             self.update_status("Computer Vision Komponenten geladen")
         except Exception as e:
@@ -641,6 +643,21 @@ class DartsGUI:
                     self.turn_complete_cooldown -= 1
                     # Update Turn-Display während Cooldown
                     if frame_count % 10 == 0:  # Alle 10 Frames (ca. 3x pro Sekunde)
+                        self.root.after(0, self.update_turn_display)
+                    
+                    # Automatisches Ende des Cooldowns nach Ablauf der Zeit
+                    if self.turn_complete_cooldown <= 0:
+                        print("⏰ Turn-Complete-Cooldown automatisch abgelaufen!")
+                        self.board_empty_check_frames = 0
+                        self.reset_dart_detection_state()
+                        
+                        # Prüfe ob Runde bereit zum Abschluss ist und schließe sie ab
+                        if self.turn_ready_to_complete:
+                            print("⏰ Cooldown abgelaufen und Runde bereit - schließe Runde ab")
+                            self.turn_ready_to_complete = False
+                            self.root.after(0, self.complete_current_turn)
+                        
+                        # Update Turn-Display sofort
                         self.root.after(0, self.update_turn_display)
                 
                 # Create display frame
@@ -774,6 +791,13 @@ class DartsGUI:
                         self.turn_complete_cooldown = 0
                         self.board_empty_check_frames = 0
                         self.reset_dart_detection_state()
+                        
+                        # Prüfe ob Runde bereit zum Abschluss ist und schließe sie ab
+                        if self.turn_ready_to_complete:
+                            print("🔄 Board ist leer und Runde bereit - schließe Runde ab")
+                            self.turn_ready_to_complete = False
+                            self.root.after(0, self.complete_current_turn)
+                        
                         # Update Turn-Display sofort
                         self.root.after(0, self.update_turn_display)
                     
@@ -937,12 +961,13 @@ class DartsGUI:
             print(f"Score hinzugefügt, Cooldown auf {self.dart_detection_cooldown}")
             
             if turn_complete:
-                print("process_detected_darts: Runde komplett, schließe ab")
+                print("process_detected_darts: Runde komplett, starte Board-Clearing-Pause")
                 # AKTIVIERE 10-Sekunden-Cooldown nach kompletter Runde
                 self.turn_complete_cooldown = self.turn_complete_cooldown_duration
                 self.board_empty_check_frames = 0
                 print(f"Turn-Complete-Cooldown aktiviert: {self.turn_complete_cooldown} Frames (10 Sekunden)")
-                self.root.after(0, self.complete_current_turn)
+                # Setze Flag dass Runde bereit zum Abschluss ist, aber warte auf Cooldown-Ende
+                self.turn_ready_to_complete = True
             else:
                 print(f"process_detected_darts: Runde noch nicht komplett, warte auf weitere Darts")
             
@@ -962,8 +987,8 @@ class DartsGUI:
         print("Processing-Flag zurückgesetzt")
     
     def complete_current_turn(self):
-        """Aktuelle Runde abschließen."""
-        print("complete_current_turn: Schließe Runde ab")
+        """Aktuelle Runde abschließen - wird nur aufgerufen wenn Cooldown abgelaufen ist."""
+        print("complete_current_turn: Schließe Runde ab (nach Cooldown)")
         
         # Processing-Flag zurücksetzen
         self._currently_processing_dart = False
@@ -975,7 +1000,9 @@ class DartsGUI:
             self.game_state.complete_turn()
             # Nach Rundenwechsel alle Dart-Positionen löschen
             print(f"Rundenwechsel: Lösche {len(self.processed_dart_positions)} verarbeitete Dart-Positionen")
+            print(f"Rundenwechsel: Lösche {len(self.blacklisted_dart_positions)} blacklisted Dart-Positionen")
             self.processed_dart_positions = []
+            self.blacklisted_dart_positions = []  # Blacklist bei Rundenwechsel löschen
             self.reset_dart_detection_state()  # Kompletter Reset nach Rundenwechsel
             self.update_all_displays()
     
@@ -1124,6 +1151,13 @@ class DartsGUI:
         
         result = messagebox.askyesno("Neues Spiel", "Neues Spiel starten?")
         if result:
+            # Reset aller Flags bei neuem Spiel
+            self.turn_ready_to_complete = False
+            self.turn_complete_cooldown = 0
+            self.board_empty_check_frames = 0
+            self.blacklisted_dart_positions = []  # Blacklist bei neuem Spiel löschen
+            self.reset_dart_detection_state()
+            
             self.game_state.start_game()
             self.update_status("Neues Spiel gestartet!")
             self.update_all_displays()
@@ -1141,7 +1175,10 @@ class DartsGUI:
         
         # Reset dart detection state bei Rundenwechsel
         self.reset_dart_detection_state()
+        self.blacklisted_dart_positions = []  # Blacklist bei Rundenwechsel löschen
+        self.turn_ready_to_complete = False  # Reset Flag bei manuellem Rundenwechsel
         print("Nächste Runde - Dart-Detection-State zurückgesetzt")
+        print(f"Nächste Runde - Blacklist geleert")
         
         self.game_state.complete_turn()
         if self.game_state.winner:
@@ -1155,17 +1192,51 @@ class DartsGUI:
             messagebox.showwarning("Warnung", "Kein aktives Spiel!")
             return
             
-        # Prüfe Turn-Complete-Cooldown auch für Rückgängig
-        if self.turn_complete_cooldown > 0:
-            remaining_seconds = self.turn_complete_cooldown / 30
-            messagebox.showwarning("Warnung", f"Board muss erst geleert werden! Noch {remaining_seconds:.1f} Sekunden warten.")
-            return
+        # Rückgängig ist IMMER erlaubt, auch während Board-Clearing-Pause
+        # Das ist der ganze Sinn der Pause - Zeit für Korrekturen zu haben
             
         if self.game_state.current_dart_count > 0:
+            # Merke ob wir vom dritten Dart zurückgehen (für spezielle Behandlung)
+            was_third_dart = (self.game_state.current_dart_count == 3)
+            
             # Reset entsprechende Detection-States wenn ein Dart rückgängig gemacht wird
+            removed_position = None
             if self.processed_dart_positions:
                 removed_position = self.processed_dart_positions.pop()
                 print(f"Rückgängig: Entferne Position {removed_position} aus processed_dart_positions")
+                
+                # WICHTIG: Füge die Position zur Blacklist hinzu für den gesamten Zug
+                self.blacklisted_dart_positions.append(removed_position)
+                print(f"Rückgängig: Füge Position {removed_position} zur Blacklist hinzu")
+                print(f"Blacklisted Positionen: {len(self.blacklisted_dart_positions)}")
+            
+            # KRITISCH: Entferne die entsprechende Position aus last_dart_positions und last_dart_scores
+            # Finde die Position, die der entfernten processed_position entspricht
+            if removed_position and self.last_dart_positions:
+                # Suche die entsprechende Position in last_dart_positions
+                for i, pos in enumerate(self.last_dart_positions):
+                    if self.are_positions_similar(pos, removed_position, self.dart_position_tolerance):
+                        removed_cached_position = self.last_dart_positions.pop(i)
+                        print(f"Rückgängig: Entferne auch Position {removed_cached_position} aus last_dart_positions (Index {i})")
+                        if i < len(self.last_dart_scores):
+                            removed_cached_score = self.last_dart_scores.pop(i)
+                            print(f"Rückgängig: Entferne auch Score {removed_cached_score} aus last_dart_scores (Index {i})")
+                        break
+                else:
+                    print(f"Rückgängig: Konnte Position {removed_position} nicht in last_dart_positions finden")
+            
+            # WICHTIG: Wenn wir vom dritten Dart zurückgehen, deaktiviere Turn-Complete-Cooldown
+            if was_third_dart:
+                print("Rückgängig vom dritten Dart: Deaktiviere Turn-Complete-Cooldown und Flags")
+                self.turn_complete_cooldown = 0
+                self.turn_ready_to_complete = False
+                self.board_empty_check_frames = 0
+                print(f"Turn-Complete-Cooldown deaktiviert, Zug ist wieder unvollständig")
+            
+            # Reset Turn-Ready-Flag generell bei Rückgängig
+            if self.turn_ready_to_complete:
+                print("Rückgängig: Reset turn_ready_to_complete")
+                self.turn_ready_to_complete = False
             
             self.game_state.undo_last_dart()
             self.update_all_displays()
@@ -1208,12 +1279,13 @@ class DartsGUI:
             
             # Gleiche Behandlung wie bei automatischer Erkennung
             if turn_complete:
-                print("add_manual_score: Runde komplett, schließe ab")
+                print("add_manual_score: Runde komplett, starte Board-Clearing-Pause")
                 # AKTIVIERE 10-Sekunden-Cooldown nach kompletter Runde (gleich wie bei Auto-Erkennung)
                 self.turn_complete_cooldown = self.turn_complete_cooldown_duration
                 self.board_empty_check_frames = 0
                 print(f"Turn-Complete-Cooldown aktiviert: {self.turn_complete_cooldown} Frames (10 Sekunden)")
-                self.complete_current_turn()
+                # Setze Flag dass Runde bereit zum Abschluss ist, aber warte auf Cooldown-Ende
+                self.turn_ready_to_complete = True
             else:
                 print(f"add_manual_score: Runde noch nicht komplett, warte auf weitere Darts")
             
@@ -1502,6 +1574,16 @@ class DartsGUI:
         filtered_positions = []
         
         for pos in dart_positions:
+            # ERST prüfen ob Position auf der Blacklist steht
+            is_blacklisted = any(
+                self.are_positions_similar(pos, blacklisted_pos, self.dart_position_tolerance)
+                for blacklisted_pos in self.blacklisted_dart_positions
+            )
+            
+            if is_blacklisted:
+                print(f"Position {pos} ist blacklisted, ignoriere für gesamten Zug")
+                continue
+            
             # Prüfe ob diese Position zu ähnlich zu bereits gefilterten ist
             is_duplicate = False
             for existing_pos in filtered_positions:
@@ -1559,6 +1641,7 @@ class DartsGUI:
         print(f"reset_dart_detection_state: Lösche {len(self.last_dart_positions)} last_dart_positions, {len(self.processed_dart_positions)} processed_dart_positions")
         self.last_dart_positions = []
         self.processed_dart_positions = []
+        # WICHTIG: Blacklist wird NICHT hier gelöscht, nur bei Rundenwechsel!
         self.last_dart_scores = []
         self.dart_detection_cooldown = 0
     
