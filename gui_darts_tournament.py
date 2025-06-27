@@ -283,6 +283,12 @@ class DartsGUI:
         # Anti-Spam für Dart-Verarbeitung
         self._currently_processing_dart = False  # Verhindert gleichzeitige Dart-Verarbeitung
         
+        # Cooldown nach 3 Darts
+        self.turn_complete_cooldown = 0  # Cooldown nach kompletter Runde (in Frames)
+        self.turn_complete_cooldown_duration = 300  # 10 Sekunden bei 30 FPS
+        self.board_empty_check_frames = 0  # Frames ohne Dart-Erkennung
+        self.board_empty_required_frames = 30  # 1 Sekunde ohne Darts = Board leer
+        
         # Create GUI
         self.setup_gui()
         self.setup_computer_vision()
@@ -627,6 +633,16 @@ class DartsGUI:
                 # Performance: Nur jeden 3. Frame vollständig verarbeiten für YOLO
                 full_processing = (frame_count % 3 == 0)
                 
+                # Cooldown-Logik verwalten
+                if self.dart_detection_cooldown > 0:
+                    self.dart_detection_cooldown -= 1
+                
+                if self.turn_complete_cooldown > 0:
+                    self.turn_complete_cooldown -= 1
+                    # Update Turn-Display während Cooldown
+                    if frame_count % 10 == 0:  # Alle 10 Frames (ca. 3x pro Sekunde)
+                        self.root.after(0, self.update_turn_display)
+                
                 # Create display frame
                 display_frame = processed_frame.copy()
                 
@@ -704,28 +720,32 @@ class DartsGUI:
                         # Filtere und stabilisiere Dart-Positionen
                         filtered_positions = self.filter_duplicate_darts(dart_positions)
                         
-                        # Prüfe ob Detection verarbeitet werden soll
-                        should_process = self.should_process_dart_detection(filtered_positions)
+                        # Reset board_empty_check_frames da Darts erkannt wurden
+                        self.board_empty_check_frames = 0
                         
-                        # Dart-Detection mit Score-Visualisierung - immer anzeigen, aber nur manchmal verarbeiten
+                        # IMMER Score-Berechnung und Anzeige für aktuelle Positionen
                         display_frame, dart_scores = self.score_predictor.process_dart_detections(
                             display_frame, 
                             filtered_positions, 
                             show_scores=True
                         )
                         
-                        # Speichere aktuelle Dart-Positionen für nächste Frames
+                        # Speichere Positionen für konsistente Anzeige zwischen Frames
                         self.last_dart_positions = filtered_positions.copy()
                         
-                        # Process detected darts automatically - aber nur wenn erlaubt
+                        # Prüfe ob Detection verarbeitet werden soll (Anti-Duplikat-Logik)
+                        should_process = self.should_process_dart_detection(filtered_positions)
+                        
+                        # Process detected darts automatically - nur bei neuen Erkennungen
                         if should_process and dart_scores:
                             print(f"✓ should_process=True, {len(dart_scores)} Dart-Scores: {dart_scores}")
                             print(f"  game_active: {self.game_state.game_active}")
                             print(f"  current_player: {self.game_state.get_current_player().name if self.game_state.get_current_player() else 'None'}")
                             print(f"  current_dart_count: {self.game_state.current_dart_count}")
+                            print(f"  turn_complete_cooldown: {self.turn_complete_cooldown}")
                             
                             # Setze längeren Cooldown um Spam zu verhindern
-                            self.dart_detection_cooldown = 10  # 2 Sekunden bei 30 FPS
+                            self.dart_detection_cooldown = 60  # 2 Sekunden bei 30 FPS
                             
                             self.last_dart_scores = dart_scores.copy() if dart_scores else []
                             self.root.after(0, lambda scores=dart_scores: self.process_detected_darts(scores))
@@ -733,7 +753,9 @@ class DartsGUI:
                         else:
                             print(f"✗ should_process={should_process}, dart_scores={len(dart_scores) if dart_scores else 0}, game_active={self.game_state.game_active}")
                             if self.dart_detection_cooldown > 0:
-                                print(f"  Cooldown aktiv: {self.dart_detection_cooldown}")
+                                print(f"  Dart-Detection-Cooldown aktiv: {self.dart_detection_cooldown}")
+                            if self.turn_complete_cooldown > 0:
+                                print(f"  Turn-Complete-Cooldown aktiv: {self.turn_complete_cooldown}")
                             if not dart_scores:
                                 print(f"  Keine Dart-Scores")
                             if not self.game_state.game_active:
@@ -742,8 +764,21 @@ class DartsGUI:
                     except Exception as detection_e:
                         print(f"Dart-Detection Fehler: {detection_e}")
                 elif self.score_predictor and self.score_predictor.is_calibrated() and not dart_positions:
-                    # Keine Darts erkannt - lösche Cache nach einer Weile
-                    if self.dart_detection_cooldown <= 0:
+                    # Keine Darts erkannt - zähle Frames für "leeres Board"
+                    self.board_empty_check_frames += 1
+                    
+                    # Nach ausreichend Frames ohne Darts UND aktiver Turn-Complete-Cooldown: Board als leer betrachten
+                    if (self.board_empty_check_frames >= self.board_empty_required_frames and 
+                        self.turn_complete_cooldown > 0):
+                        print(f"🔄 Board ist leer nach {self.board_empty_check_frames} Frames! Reset Turn-Complete-Cooldown (war {self.turn_complete_cooldown})")
+                        self.turn_complete_cooldown = 0
+                        self.board_empty_check_frames = 0
+                        self.reset_dart_detection_state()
+                        # Update Turn-Display sofort
+                        self.root.after(0, self.update_turn_display)
+                    
+                    # Lösche Dart-Cache nach einer Weile wenn kein Cooldown aktiv
+                    if self.dart_detection_cooldown <= 0 and self.turn_complete_cooldown <= 0:
                         self.reset_dart_detection_state()
                 
                 # Show YOLO detections in debug mode
@@ -868,15 +903,33 @@ class DartsGUI:
                 print(f"process_detected_darts: Runde bereits komplett ({self.game_state.current_dart_count}/3)")
                 return
             
-            # Nimm nur den ersten erkannten Dart
+            # Nimm nur den ersten erkannten Dart UND entferne ähnliche aus processed_dart_positions
             score, description = dart_scores[0]
             print(f"Verarbeite EINEN Dart: {score} ({description}) für {current_player.name} (Dart {self.game_state.current_dart_count + 1}/3)")
             
-            # Speichere verarbeitete Position um Duplikate zu verhindern
-            if hasattr(self, 'stable_dart_positions') and self.stable_dart_positions:
-                first_position = self.stable_dart_positions[0]
-                self.processed_dart_positions.append(first_position)
-                print(f"Position {first_position} zu processed_dart_positions hinzugefügt")
+            # Finde die entsprechende neue Position und markiere sie als verarbeitet
+            # Suche die erste Position die NICHT bereits verarbeitet wurde
+            new_position_found = None
+            for i, (dart_score, dart_desc) in enumerate(dart_scores):
+                # Versuche die entsprechende Position zu finden
+                if i < len(self.last_dart_positions):
+                    candidate_pos = self.last_dart_positions[i]
+                    # Prüfe ob diese Position bereits verarbeitet wurde
+                    is_already_processed = any(
+                        self.are_positions_similar(candidate_pos, processed_pos, self.dart_position_tolerance)
+                        for processed_pos in self.processed_dart_positions
+                    )
+                    if not is_already_processed:
+                        new_position_found = candidate_pos
+                        # Verwende den entsprechenden Score, nicht nur den ersten
+                        score, description = dart_score, dart_desc
+                        print(f"Verwende Position {new_position_found} mit Score {score} ({description})")
+                        break
+            
+            # Füge die neue Position zu verarbeiteten hinzu
+            if new_position_found:
+                self.processed_dart_positions.append(new_position_found)
+                print(f"Position {new_position_found} zu processed_dart_positions hinzugefügt")
             
             turn_complete = self.game_state.add_dart_score(score, description)
             
@@ -885,6 +938,10 @@ class DartsGUI:
             
             if turn_complete:
                 print("process_detected_darts: Runde komplett, schließe ab")
+                # AKTIVIERE 10-Sekunden-Cooldown nach kompletter Runde
+                self.turn_complete_cooldown = self.turn_complete_cooldown_duration
+                self.board_empty_check_frames = 0
+                print(f"Turn-Complete-Cooldown aktiviert: {self.turn_complete_cooldown} Frames (10 Sekunden)")
                 self.root.after(0, self.complete_current_turn)
             else:
                 print(f"process_detected_darts: Runde noch nicht komplett, warte auf weitere Darts")
@@ -916,7 +973,7 @@ class DartsGUI:
             self.end_game()
         else:
             self.game_state.complete_turn()
-            # Nach Rundenwechsel die verarbeiteten Dart-Positionen löschen
+            # Nach Rundenwechsel alle Dart-Positionen löschen
             print(f"Rundenwechsel: Lösche {len(self.processed_dart_positions)} verarbeitete Dart-Positionen")
             self.processed_dart_positions = []
             self.reset_dart_detection_state()  # Kompletter Reset nach Rundenwechsel
@@ -1029,14 +1086,35 @@ class DartsGUI:
     
     def update_turn_display(self):
         """Runden-Anzeige aktualisieren."""
-        if self.game_state.players and self.game_state.game_active:
+        if self.turn_complete_cooldown > 0:
+            # Berechne verbleibende Sekunden
+            remaining_seconds = self.turn_complete_cooldown / 30  # 30 FPS
+            if remaining_seconds > 1.0:
+                self.turn_info_var.set(f"⏳ Wartepause - Board leeren! ({remaining_seconds:.1f}s)")
+            else:
+                self.turn_info_var.set(f"⏳ Wartepause - Board leeren! (0.{int(remaining_seconds*10)}s)")
+            
+            # Deaktiviere relevante Buttons während Cooldown
+            if hasattr(self, 'next_turn_btn'):
+                self.next_turn_btn.configure(state='disabled')
+                
+        elif self.game_state.players and self.game_state.game_active:
             current = self.game_state.get_current_player()
             dart_info = f"Dart {self.game_state.current_dart_count + 1}/3" if current else ""
             self.turn_info_var.set(f"{current.name} ist dran - {dart_info}")
+            
+            # Reaktiviere Buttons wenn kein Cooldown
+            if hasattr(self, 'next_turn_btn'):
+                self.next_turn_btn.configure(state='normal')
+                
         elif self.game_state.players:
             self.turn_info_var.set(f"{len(self.game_state.players)} Spieler bereit - Spiel starten")
+            if hasattr(self, 'next_turn_btn'):
+                self.next_turn_btn.configure(state='normal')
         else:
             self.turn_info_var.set("Spieler hinzufügen zum Starten")
+            if hasattr(self, 'next_turn_btn'):
+                self.next_turn_btn.configure(state='normal')
     
     def new_game(self):
         """Neues Spiel starten."""
@@ -1055,6 +1133,12 @@ class DartsGUI:
         if not self.game_state.game_active:
             return
         
+        # Prüfe Turn-Complete-Cooldown auch für manuellen Rundenwechsel
+        if self.turn_complete_cooldown > 0:
+            remaining_seconds = self.turn_complete_cooldown / 30
+            messagebox.showwarning("Warnung", f"Board muss erst geleert werden! Noch {remaining_seconds:.1f} Sekunden warten.")
+            return
+        
         # Reset dart detection state bei Rundenwechsel
         self.reset_dart_detection_state()
         print("Nächste Runde - Dart-Detection-State zurückgesetzt")
@@ -1067,10 +1151,27 @@ class DartsGUI:
     
     def undo_last_dart(self):
         """Letzten Dart rückgängig machen."""
+        if not self.game_state.game_active:
+            messagebox.showwarning("Warnung", "Kein aktives Spiel!")
+            return
+            
+        # Prüfe Turn-Complete-Cooldown auch für Rückgängig
+        if self.turn_complete_cooldown > 0:
+            remaining_seconds = self.turn_complete_cooldown / 30
+            messagebox.showwarning("Warnung", f"Board muss erst geleert werden! Noch {remaining_seconds:.1f} Sekunden warten.")
+            return
+            
         if self.game_state.current_dart_count > 0:
+            # Reset entsprechende Detection-States wenn ein Dart rückgängig gemacht wird
+            if self.processed_dart_positions:
+                removed_position = self.processed_dart_positions.pop()
+                print(f"Rückgängig: Entferne Position {removed_position} aus processed_dart_positions")
+            
             self.game_state.undo_last_dart()
             self.update_all_displays()
             self.update_status("Letzter Dart rückgängig gemacht")
+        else:
+            messagebox.showinfo("Information", "Kein Dart zum Rückgängigmachen vorhanden")
     
     def add_manual_score(self):
         """Manuelle Punktzahl hinzufügen."""
@@ -1094,15 +1195,27 @@ class DartsGUI:
                 messagebox.showwarning("Warnung", "Kein aktiver Spieler!")
                 return
             
+            # Prüfe Turn-Complete-Cooldown (gleiche Logik wie bei automatischer Erkennung)
+            if self.turn_complete_cooldown > 0:
+                remaining_seconds = self.turn_complete_cooldown / 30
+                messagebox.showwarning("Warnung", f"Board muss erst geleert werden! Noch {remaining_seconds:.1f} Sekunden warten.")
+                return
+            
             # Debug-Ausgabe
             print(f"Füge manuell {score} Punkte für {current_player.name} hinzu")
             
             turn_complete = self.game_state.add_dart_score(score, f"Manuell: {score}")
             
-            # Prüfe explizit ob die Runde abgeschlossen werden sollte
-            if turn_complete or self.game_state.current_dart_count >= 3:
-                print(f"Runde abschließen: turn_complete={turn_complete}, dart_count={self.game_state.current_dart_count}")
+            # Gleiche Behandlung wie bei automatischer Erkennung
+            if turn_complete:
+                print("add_manual_score: Runde komplett, schließe ab")
+                # AKTIVIERE 10-Sekunden-Cooldown nach kompletter Runde (gleich wie bei Auto-Erkennung)
+                self.turn_complete_cooldown = self.turn_complete_cooldown_duration
+                self.board_empty_check_frames = 0
+                print(f"Turn-Complete-Cooldown aktiviert: {self.turn_complete_cooldown} Frames (10 Sekunden)")
                 self.complete_current_turn()
+            else:
+                print(f"add_manual_score: Runde noch nicht komplett, warte auf weitere Darts")
             
             self.manual_score_var.set("")
             self.update_all_displays()
@@ -1405,10 +1518,14 @@ class DartsGUI:
         """Entscheidet ob Dart-Detection verarbeitet werden soll (Anti-Spam)."""
         print(f"should_process_dart_detection: Input {len(dart_positions)} Dart-Positionen")
         
-        # Cooldown check
+        # Turn-Complete-Cooldown check (wichtiger als normaler Cooldown)
+        if self.turn_complete_cooldown > 0:
+            print(f"  Turn-Complete-Cooldown aktiv: {self.turn_complete_cooldown} Frames")
+            return False
+        
+        # Normaler Cooldown check
         if self.dart_detection_cooldown > 0:
             print(f"  Cooldown aktiv: {self.dart_detection_cooldown}")
-            self.dart_detection_cooldown -= 1
             return False
         
         # Keine Darts erkannt
@@ -1416,34 +1533,21 @@ class DartsGUI:
             print(f"  Keine Dart-Positionen")
             return False
         
-        # Filtere doppelte Positionen
-        filtered_positions = self.filter_duplicate_darts(dart_positions)
-        print(f"  Nach Filterung: {len(filtered_positions)} Positionen")
-        
-        # Zu viele ähnliche Positionen = wahrscheinlich Fehlerkennung
-        if len(filtered_positions) != len(dart_positions):
-            print(f"  Gefiltert: {len(dart_positions)} -> {len(filtered_positions)} Darts")
-        
-        # Prüfe ob die aktuellen Positionen NEU sind (nicht schon verarbeitet)
+        # Einfache Duplikat-Prüfung: Prüfe nur gegen bereits verarbeitete Positionen
         new_positions = []
-        for pos in filtered_positions:
-            # Prüfe gegen letzte VERARBEITETE Positionen (für Anti-Duplikat)
+        for pos in dart_positions:
             is_already_processed = any(
                 self.are_positions_similar(pos, processed_pos, self.dart_position_tolerance)
                 for processed_pos in self.processed_dart_positions
             )
             if not is_already_processed:
                 new_positions.append(pos)
-            else:
-                print(f"    Position {pos} bereits verarbeitet (ähnlich zu {[p for p in self.processed_dart_positions if self.are_positions_similar(pos, p, self.dart_position_tolerance)]})")
         
-        print(f"  Neue Positionen: {len(new_positions)} von {len(filtered_positions)}")
+        print(f"  Neue Positionen: {len(new_positions)} von {len(dart_positions)}")
         
         # Nur verarbeiten wenn wir NEUE Positionen haben
         if len(new_positions) > 0:
             print(f"  ✓ Neue Dart-Positionen gefunden: {len(new_positions)}")
-            # Update stabile Positionen nur mit neuen
-            self.stable_dart_positions = new_positions.copy()
             return True
         
         # Keine neuen Positionen
@@ -1452,21 +1556,37 @@ class DartsGUI:
     
     def reset_dart_detection_state(self):
         """Setzt den Dart-Detection-Zustand zurück."""
+        print(f"reset_dart_detection_state: Lösche {len(self.last_dart_positions)} last_dart_positions, {len(self.processed_dart_positions)} processed_dart_positions")
         self.last_dart_positions = []
         self.processed_dart_positions = []
         self.last_dart_scores = []
-        self.stable_dart_positions = []
         self.dart_detection_cooldown = 0
     
     def clear_dart_cache_after_processing(self):
         """Löscht den Dart-Cache nach Verarbeitung, um doppelte Zählungen zu verhindern."""
         print("Lösche Dart-Cache nach Verarbeitung")
-        print(f"  Vor dem Löschen: last_dart_positions={len(self.last_dart_positions)}, stable_dart_positions={len(self.stable_dart_positions)}, processed={len(self.processed_dart_positions)}")
-        # Nur Anzeige-Cache löschen, processed_dart_positions behalten für Anti-Duplikat
-        self.last_dart_positions = []
-        self.last_dart_scores = []
-        self.stable_dart_positions = []
-        print(f"  Nach dem Löschen: Anzeige-Caches geleert, processed_dart_positions behalten ({len(self.processed_dart_positions)} Positionen)")
+        print(f"  Vor dem Löschen: last_dart_positions={len(self.last_dart_positions)}, processed={len(self.processed_dart_positions)}")
+        
+        # Behalte last_dart_positions für die Anzeige, lösche nur wenn alle verarbeitet wurden
+        all_positions_processed = True
+        if self.last_dart_positions:
+            for pos in self.last_dart_positions:
+                is_processed = any(
+                    self.are_positions_similar(pos, processed_pos, self.dart_position_tolerance)
+                    for processed_pos in self.processed_dart_positions
+                )
+                if not is_processed:
+                    all_positions_processed = False
+                    break
+        
+        if all_positions_processed and self.last_dart_positions:
+            print("  Alle Positionen verarbeitet - lösche Anzeige-Cache")
+            self.last_dart_positions = []
+            self.last_dart_scores = []
+        else:
+            print(f"  Noch unverarbeitete Positionen - behalte Anzeige-Cache")
+        
+        print(f"  Nach dem Löschen: last_dart_positions={len(self.last_dart_positions)}, processed_dart_positions={len(self.processed_dart_positions)}")
 
 if __name__ == "__main__":
     # Start the Darts GUI application
