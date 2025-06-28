@@ -1,0 +1,11 @@
+names:
+- '20'
+- '3'
+- '11'
+- '6'
+- dart
+- '9'
+- '15'
+path: '../datasets/darts-al1-stg1'
+train: images/train
+val: images/val
