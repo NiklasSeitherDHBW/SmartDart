@@ -180,7 +180,10 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+runs/
 training/runs/
 training/data/train/labels.cache
 training/data/dataset.yaml
 yolo*.pt
+!models/yolo*.pt
+*.zip
