@@ -87,14 +87,14 @@ def create_yolo_annotation(image_path, results, output_dir):
 
 def main():
     # Paths
-    input_dir = Path("training/data/transferlearning/Test2/stg2/good")
-    output_dir = Path("training/data/transferlearning/Test2/stg2/labels")
+    input_dir = Path("training/data/transferlearning/Test2/stg3/good")
+    output_dir = Path("training/data/transferlearning/Test2/stg3/labels")
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize predictor
-    predictor = predict.Predictor(model_path="models/Test2-stg1-2.pt")
+    predictor = predict.Predictor(model_path="models/Test2-stg2-2.pt")
 
     # Get all image files
     image_files = list(input_dir.glob("*.jpg")) + list(input_dir.glob("*.png"))

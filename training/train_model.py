@@ -11,7 +11,7 @@ def create_dataset_yaml():
 
     dataset_config = {
         "path": str(
-            Path.cwd() / "training" / "data" / "train"
+            Path("training") / "data" / "train"
         ),  # Point to train folder
         "train": "images/train",  # Images subfolder
         "val": "images/val",  # Using same data for validation
@@ -33,11 +33,9 @@ def setup_yolo_structure():
     train_images = Path("training/data/train/images")
     train_labels = Path("training/data/train/labels")
 
-    train_images.mkdir(parents=True, exist_ok=True)
-
     print(f"YOLO structure ready:")
-    print(f"  Images: {train_images} ({len(list(train_images.glob('*')))} files)")
-    print(f"  Labels: {train_labels} ({len(list(train_labels.glob('*.txt')))} files)")
+    print(f"  Images: {train_images} ({len(list(train_images.glob('*/*.jpg')))} files)")
+    print(f"  Labels: {train_labels} ({len(list(train_labels.glob('*/*.txt')))} files)")
 
 
 def train_model():
@@ -49,6 +47,7 @@ def train_model():
     dataset_config = (
         create_dataset_yaml()
     ) 
+
     model = YOLO("yolo11n.pt")
 
     # Use all available CPU cores for multiprocessing

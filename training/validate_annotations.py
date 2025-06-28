@@ -35,8 +35,8 @@ def count_classes(boxes):
     return class_counts
 
 def main():
-    image_dir = Path("training/data/transferlearning/Test2/stg2/good")
-    label_dir = Path("training/data/transferlearning/Test2/stg2/labels")
+    image_dir = Path("training/data/transferlearning/Test2/stg3/good")
+    label_dir = Path("training/data/transferlearning/Test2/stg3/labels")
     
     # Class mapping:
     # Class 0 is "20", 1 is "3", 2 is "11", 3 is "6", 4 is "dart", 5 is "9" and 6 is "15"
