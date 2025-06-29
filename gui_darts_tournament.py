@@ -521,7 +521,7 @@ class DartsGUI:
         """Computer Vision Komponenten einrichten."""
         try:
             # Initialize components but don't start camera yet
-            self.predictor = predict.Predictor(model_path="models/stg4.pt")
+            self.predictor = predict.Predictor(model_path="models/yolo8n-pretrained-al2-stg3.pt")
             self.score_predictor = score_prediction.DartboardScorePredictor()
             self.update_status("Computer Vision Komponenten geladen")
         except Exception as e:
