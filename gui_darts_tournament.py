@@ -241,7 +241,7 @@ class DartsGUI:
     
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("🎯 Darts Turnier - Computer Vision Edition")
+        self.root.title("🎯 SmartDart")
         self.root.geometry("1600x900")
         self.root.configure(bg='#2C3E50')
         
@@ -343,7 +343,7 @@ class DartsGUI:
         header_frame.pack_propagate(False)
         
         # Spiel Titel
-        title_label = tk.Label(header_frame, text="🎯 DARTS TURNIER", 
+        title_label = tk.Label(header_frame, text="🎯 SmartDart", 
                               font=('Arial', 24, 'bold'), 
                               fg='white', bg='#34495E')
         title_label.pack(side='left', padx=20, pady=20)

@@ -127,13 +127,14 @@ class DartboardScorePredictor:
                                   show_numbers: bool = False,
                                   show_analysis: bool = False) -> np.ndarray:
         out = image.copy()
-        if reference_points and self.calibrate_dartboard(reference_points):
-            pass
+        if reference_points and not self.is_calibrated():
+            self.calibrate_dartboard(reference_points)
         if self.center is None:
             return out
         tpl = self.create_dartboard_template()
         warp = cv2.warpAffine(tpl, self.transform_matrix, (image.shape[1], image.shape[0]))
         mask = cv2.cvtColor(warp, cv2.COLOR_BGR2GRAY)
+        cv2.imshow("Dartboard Template", warp)
         _,mask = cv2.threshold(mask,127,255,cv2.THRESH_BINARY)
         ys,xs = np.where(mask>0)
         out[ys,xs] = template_color
@@ -166,9 +167,11 @@ class DartboardScorePredictor:
         dx = dart_position[0] - self.center[0]
         dy = dart_position[1] - self.center[1]
         dist = math.hypot(dx,dy) / self.radius
-        ang = math.degrees(math.atan2(dy,dx)) - math.degrees(self.rotation_angle)
+        # Calculate angle from dart position relative to dartboard center
+        # Add 90 degrees to align with the coordinate system where segment 20 is at top
+        ang = math.degrees(math.atan2(dy,dx)) + 90 - math.degrees(self.rotation_angle)
         ang %= 360
-        # Align so segment 20 is at top
+        # Align so segment 20 is at top (adjust for dartboard segment layout)
         adj = (ang + 9) % 360
         idx = int(adj // 18)
         val = self.dartboard_numbers[idx]

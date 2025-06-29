@@ -6,25 +6,21 @@ from utils import camera, calibration, predict, score_prediction
 DEBUG = True
 
 if __name__ == "__main__":
-    cam = camera.VideoStreamViewer(source=Path("training/data/transferlearning/stg1/raw"))
+    cam = camera.VideoStreamViewer(source=0)
     cam.open_connection()
     if not cam.isOpened():
         print("Camera not opened")
         exit(1)
 
-    calib = calibration.CameraCalibration(ref_img="resources/dartboard-gerade.jpg", debug=DEBUG)
-    predictor = predict.Predictor(model_path="training/runs/train/PerfectTrainingdata-pretrained/weights/best.pt")
+    calib = calibration.CameraCalibration(ref_img="resources/dartboard-gerade2.png", debug=DEBUG)
+    predictor = predict.Predictor(model_path="models/yolo8n-pretrained-al2-stg3.pt")
     
     # Initialize dartboard score predictor
     score_predictor = score_prediction.DartboardScorePredictor()
 
-    frame = cv2.imread("training/data/transferlearning/stg1/raw/00251.jpg")
-    for i in range(2500):
-        frame = cam.get_frame_raw()
-        if frame is None:
-            print("Failed to load initial frame")
-            exit(1)
     frame = cam.get_frame_raw()
+    for _ in range(5):
+        frame = cam.get_frame_raw()
     if frame is None:
         print("Failed to grab frame")
         exit(1)
@@ -47,12 +43,6 @@ if __name__ == "__main__":
         if frame is None:
             print("Failed to grab frame")
             break
-
-        calib = calibration.CameraCalibration(ref_img="resources/dartboard-gerade.jpg", debug=False)
-        success, result = calib.initial_calibration(frame)
-        if not success:
-            print(f"Calibration failed: {result}")
-            continue
         
         frame = calib.warp_frame(frame)
         if frame is None:
