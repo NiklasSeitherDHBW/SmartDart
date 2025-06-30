@@ -265,7 +265,7 @@ class DartsGUI:
         self.dartboard_calibrated = False
         
         # Kamera Settings
-        self.camera_source = 0
+        self.camera_source = 1
         self.use_image_folder = False
         self.image_folder_path = "training/data/transferlearning/stg1/raw"
         
@@ -286,9 +286,9 @@ class DartsGUI:
         
         # Cooldown nach 3 Darts
         self.turn_complete_cooldown = 0  # Cooldown nach kompletter Runde (in Frames)
-        self.turn_complete_cooldown_duration = 300  # 10 Sekunden bei 30 FPS
+        self.turn_complete_cooldown_duration = 100  # 10 Sekunden bei 30 FPS
         self.board_empty_check_frames = 0  # Frames ohne Dart-Erkennung
-        self.board_empty_required_frames = 30  # 1 Sekunde ohne Darts = Board leer
+        self.board_empty_required_frames = 10  # 1 Sekunde ohne Darts = Board leer
         self.turn_ready_to_complete = False  # Flag dass Runde bereit zum Abschluss ist
         
         # Create GUI
@@ -1070,7 +1070,7 @@ class DartsGUI:
                               font=('Arial', 10), fg='#BDC3C7', bg='#2C3E50')
         darts_label.pack(side='left')
         
-        avg_label = tk.Label(stats_frame, text=f"Durchschnitt: {player.get_average():.1f}", 
+        avg_label = tk.Label(stats_frame, text=f"Durchschnitt: {player.get_average()*3:.1f}", 
                             font=('Arial', 10), fg='#BDC3C7', bg='#2C3E50')
         avg_label.pack(side='right')
         
