@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from pathlib import Path
+from matplotlib.backends.backend_pdf import PdfPages
 
 def calculate_brightness(image_path):
     """
@@ -119,98 +120,84 @@ def create_histogram():
         print("Keine Bilder gefunden! Überprüfen Sie die Pfade.")
         return
     
-    # Erstelle Subplots
-    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-    fig.suptitle('Neutrale Belichtungsanalyse der Dartscheiben-Bilder (Luminanz-basiert)', fontsize=16, fontweight='bold')
+    # Erstelle nur das Vergleichs-Diagramm: Training vs. Validierung
+    output_base = r"c:\Users\CARLO\OneDrive\Desktop\Darts"
     
-    # 1. Histogramm: Neutrale Helligkeit (alle Bilder)
-    axes[0, 0].hist(all_brightness, bins=30, alpha=0.7, color='blue', edgecolor='black')
-    axes[0, 0].set_title('Neutrale Helligkeit - Luminanz (Alle Bilder)')
-    axes[0, 0].set_xlabel('Luminanz-basierte Helligkeit (0-255)')
-    axes[0, 0].set_ylabel('Anzahl Bilder')
-    axes[0, 0].grid(True, alpha=0.3)
-    
-    # Statistiken hinzufügen
-    mean_brightness = np.mean(all_brightness)
-    std_brightness = np.std(all_brightness)
-    axes[0, 0].axvline(mean_brightness, color='red', linestyle='--', 
-                       label=f'Mittelwert: {mean_brightness:.1f}')
-    axes[0, 0].legend()
-    
-    # 2. Histogramm: Neutrale Belichtungswerte (alle Bilder)
-    axes[0, 1].hist(all_exposure, bins=30, alpha=0.7, color='green', edgecolor='black')
-    axes[0, 1].set_title('Neutrale Belichtungswerte - Luminanz (Alle Bilder)')
-    axes[0, 1].set_xlabel('Luminanz-basierter Belichtungswert')
-    axes[0, 1].set_ylabel('Anzahl Bilder')
-    axes[0, 1].grid(True, alpha=0.3)
-    
-    mean_exposure = np.mean(all_exposure)
-    axes[0, 1].axvline(mean_exposure, color='red', linestyle='--',
-                       label=f'Mittelwert: {mean_exposure:.1f}')
-    axes[0, 1].legend()
-    
-    # 3. Vergleich: Validierungs- vs Trainingsbilder (Helligkeit)
+    # Vergleich: Validierungs- vs Trainingsbilder (Helligkeit)
+    # Validierung wird in den Vordergrund gestellt
     if val_brightness and train_brightness:
-        axes[1, 0].hist(val_brightness, bins=20, alpha=0.7, color='orange', 
-                        label=f'Validierung ({len(val_brightness)})', edgecolor='black')
-        axes[1, 0].hist(train_brightness, bins=20, alpha=0.7, color='purple', 
-                        label=f'Training ({len(train_brightness)})', edgecolor='black')
-        axes[1, 0].set_title('Neutrale Helligkeit: Training vs. Validierung')
-        axes[1, 0].set_xlabel('Luminanz-basierte Helligkeit (0-255)')
-        axes[1, 0].set_ylabel('Anzahl Bilder')
-        axes[1, 0].legend()
-        axes[1, 0].grid(True, alpha=0.3)
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Erst Trainingsbilder (im Hintergrund)
+        ax.hist(train_brightness, bins=25, alpha=0.6, color='purple', 
+                label=f'Training ({len(train_brightness)} Bilder)', edgecolor='black', linewidth=0.8)
+        
+        # Dann Validierungsbilder (im Vordergrund)
+        ax.hist(val_brightness, bins=25, alpha=0.8, color='orange', 
+                label=f'Validierung ({len(val_brightness)} Bilder)', edgecolor='black', linewidth=1.0)
+        
+        ax.set_title('Helligkeitsvergleich: Training vs. Validierung', fontsize=16, fontweight='bold')
+        ax.set_xlabel('Helligkeit (0=Schwarz, 128=Mittelgrau, 255=Weiß)', fontsize=14)
+        ax.set_ylabel('Anzahl Bilder', fontsize=14)
+        ax.legend(fontsize=12, loc='upper right')
+        ax.grid(True, alpha=0.3)
+        
+        # Statistiken hinzufügen
+        mean_val = np.mean(val_brightness)
+        mean_train = np.mean(train_brightness)
+        
+        ax.axvline(mean_val, color='darkorange', linestyle='--', linewidth=2,
+                   label=f'Mittelwert Validierung: {mean_val:.1f}')
+        ax.axvline(mean_train, color='darkviolet', linestyle='--', linewidth=2,
+                   label=f'Mittelwert Training: {mean_train:.1f}')
+        
+        # Legende aktualisieren
+        ax.legend(fontsize=12, loc='upper right')
+        
+        plt.tight_layout()
+        
+        # Als PDF speichern
+        pdf_path = os.path.join(output_base, "vergleich_train_val.pdf")
+        plt.savefig(pdf_path, format='pdf', dpi=300, bbox_inches='tight')
+        print(f"📄 PDF gespeichert: {pdf_path}")
+        
+        # Als PNG speichern
+        png_path = os.path.join(output_base, "vergleich_train_val.png")
+        plt.savefig(png_path, dpi=300, bbox_inches='tight')
+        print(f"🖼️ PNG gespeichert: {png_path}")
+        
+        plt.close()
+        
+    else:
+        print("❌ Nicht genügend Daten für Vergleich verfügbar!")
+        return
     
-    # 4. Belichtungskategorien
-    categories = []
-    for brightness in all_brightness:
-        if brightness < 85:
-            categories.append('Dunkel')
-        elif brightness < 170:
-            categories.append('Normal')
-        else:
-            categories.append('Hell')
-    
-    category_counts = {cat: categories.count(cat) for cat in ['Dunkel', 'Normal', 'Hell']}
-    colors = ['darkblue', 'lightblue', 'yellow']
-    
-    axes[1, 1].bar(category_counts.keys(), category_counts.values(), 
-                   color=colors, edgecolor='black', alpha=0.8)
-    axes[1, 1].set_title('Belichtungskategorien')
-    axes[1, 1].set_ylabel('Anzahl Bilder')
-    axes[1, 1].grid(True, alpha=0.3)
-    
-    # Prozentuale Anteile hinzufügen
-    total_images = len(all_brightness)
-    for i, (category, count) in enumerate(category_counts.items()):
-        percentage = (count / total_images) * 100
-        axes[1, 1].text(i, count + 1, f'{percentage:.1f}%', 
-                        ha='center', va='bottom', fontweight='bold')
-    
-    plt.tight_layout()
-    
-    # Speichere das Histogramm
-    output_path = r"c:\Users\CARLO\OneDrive\Desktop\Darts\belichtung_histogramm.png"
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"\nHistogramm gespeichert unter: {output_path}")
+    # PNG speichern
+    png_path = os.path.join(output_base, "belichtung_histogramm.png")
+    plt.savefig(png_path, dpi=300, bbox_inches='tight')
+    print(f"🖼️ PNG gespeichert: {png_path}")
+    plt.close()
     
     # Zeige Statistiken
-    print("\n" + "="*50)
-    print("BELICHTUNGSSTATISTIKEN")
-    print("="*50)
-    print(f"Gesamtanzahl Bilder: {total_images}")
+    print("\n" + "="*70)
+    print("📊 BELICHTUNGSSTATISTIKEN")
+    print("="*70)
+    print(f"Gesamtanzahl Bilder: {len(all_brightness)}")
     print(f"Trainingsbilder: {len(train_brightness)}")
     print(f"Validierungsbilder: {len(val_brightness)}")
-    print(f"\nDurchschnittliche neutrale Helligkeit (Luminanz): {mean_brightness:.2f} ± {std_brightness:.2f}")
-    print(f"Minimale neutrale Helligkeit: {min(all_brightness):.2f}")
-    print(f"Maximale neutrale Helligkeit: {max(all_brightness):.2f}")
-    print(f"\nBelichtungskategorien (basierend auf neutraler Luminanz):")
-    for category, count in category_counts.items():
-        percentage = (count / total_images) * 100
-        print(f"  {category}: {count} Bilder ({percentage:.1f}%)")
+    print("\n📊 Erstelle Vergleichsdiagramm Training vs. Validierung...")
     
-    # Zeige das Histogramm
-    plt.show()
+    if not val_brightness or not train_brightness:
+        print("❌ Nicht genügend Daten für Vergleich verfügbar!")
+        return
+    
+    print("✅ Vergleichsdiagramm erfolgreich erstellt!")
+    print("\n" + "="*50)
+    print("📄 VERGLEICHSDIAGRAMM ERSTELLT:")
+    print("="*50)
+    print("📊 vergleich_train_val.pdf - Training vs. Validierung")
+    print("🖼️ vergleich_train_val.png - PNG-Version")
+    print("\n✅ Vergleichsdiagramm erfolgreich erstellt!")
 
 if __name__ == "__main__":
     create_histogram()
