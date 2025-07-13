@@ -22,15 +22,16 @@ def count_images_in_folder(folder_path):
     count = 0
     
     for ext in image_extensions:
-        count += len(glob.glob(os.path.join(folder_path, ext)))
-        count += len(glob.glob(os.path.join(folder_path, ext.upper())))
+        # Nur Kleinbuchstaben zählen (um Duplikate zu vermeiden)
+        files = glob.glob(os.path.join(folder_path, ext))
+        count += len(files)
     
     return count
 
 
 def analyze_model(model_name, base_path):
     """Analysiert ein einzelnes Modell."""
-    model_folder = os.path.join(base_path, f"processed_images_helligkeit{model_name}")
+    model_folder = os.path.join(base_path, f"processed_images_helligkeit_{model_name}")
     categorized_path = os.path.join(model_folder, "categorized")
     
     if not os.path.exists(categorized_path):
@@ -90,8 +91,9 @@ def main():
     # Finde alle Modell-Ordner
     model_folders = []
     for folder in os.listdir(base_path):
-        if os.path.isdir(os.path.join(base_path, folder)) and folder.startswith("processed_images_"):
-            model_name = folder.replace("processed_images_helligkeit", "")
+        if os.path.isdir(os.path.join(base_path, folder)) and folder.startswith("processed_images_helligkeit_"):
+            # Extrahiere den Modellnamen (alles nach "processed_images_helligkeit_")
+            model_name = folder.replace("processed_images_helligkeit_", "")
             model_folders.append(model_name)
     
     if not model_folders:
