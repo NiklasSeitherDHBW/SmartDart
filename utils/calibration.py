@@ -62,7 +62,7 @@ class CameraCalibration:
             return False, "Could not compute homography!"
         
         if self.debug:
-            # Zeige SIFT Keypoints als Kreise
+            # Show SIFT Keypoints as circles
             img1_with_keypoints = cv2.drawKeypoints(frame, kps1, None, 
                                                    color=(0, 255, 0), 
                                                    flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
@@ -76,19 +76,19 @@ class CameraCalibration:
             img1_resized = cv2.resize(img1_with_keypoints, display_size)
             img2_resized = cv2.resize(img2_with_keypoints, display_size)
             
-            # Zeige beide Bilder mit Keypoints als Kreise
+            # Show both images with keypoints as circles
             cv2.imshow("Source Frame Keypoints", img1_resized)
             cv2.imshow("Reference Image Keypoints", img2_resized)
             
-            # Optional: Zeige auch die Matches mit Linien
+            # Also show the matches with lines
             matches_img = cv2.drawMatches(
-                frame, kps1,           # Source frame first (queryIdx)
-                self.ref_img, kps2,    # Reference image second (trainIdx)
+                frame, kps1,           # Source frame first
+                self.ref_img, kps2,    # Reference image second
                 good_matches, None, 
                 flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
             )
             
-            # Resize matches image (it's wider, so different aspect ratio)
+            # Resize matches image
             matches_resized = cv2.resize(matches_img, (1600, 800))
             cv2.imshow("Feature Matches", matches_resized)
 
