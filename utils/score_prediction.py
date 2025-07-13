@@ -13,15 +13,12 @@ class DartboardScorePredictor:
     def __init__(self, template_radius: int = 400):
         """
         Initialize the dartboard score predictor.
-        
-        Args:
-            template_radius: Radius of the dartboard template
         """
         self.template_radius = template_radius
         self.dartboard_numbers = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17,
                                   3, 19, 7, 16, 8, 11, 14, 9, 12, 5]
         
-        # Dartboard region ratios (as fraction of radius)
+        # Dartboard region ratios as fraction of radius
         self.outer_double = 1.0
         self.inner_double = 0.95
         self.outer_treble = 0.625
@@ -91,7 +88,7 @@ class DartboardScorePredictor:
         """
         center, radius = self.fit_circle_through_points(reference_points)
         scale = radius / self.template_radius
-        # Rotation: align first point
+        # align first point
         rot = 0.0
         if reference_points:
             dx = reference_points[0][0] - center[0]
@@ -142,7 +139,7 @@ class DartboardScorePredictor:
         cx,cy = int(self.center[0]), int(self.center[1])
         cv2.circle(out, (cx,cy), int(self.radius), (0,255,0),2)
         cv2.circle(out, (cx,cy), 5, (0,255,0),-1)
-        # Analysis
+        
         if reference_points and show_analysis:
             for i,pt in enumerate(reference_points):
                 dx,dy = pt[0]-self.center[0], pt[1]-self.center[1]
@@ -171,7 +168,6 @@ class DartboardScorePredictor:
         # Add 90 degrees to align with the coordinate system where segment 20 is at top
         ang = math.degrees(math.atan2(dy,dx)) + 90 - math.degrees(self.rotation_angle)
         ang %= 360
-        # Align so segment 20 is at top (adjust for dartboard segment layout)
         adj = (ang + 9) % 360
         idx = int(adj // 18)
         val = self.dartboard_numbers[idx]
