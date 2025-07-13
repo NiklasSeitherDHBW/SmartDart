@@ -75,7 +75,7 @@ if __name__ == "__main__":
                         # Collect other detected features as potential dartboard reference points
                         dartboard_points.append((x_center, y_center))
         
-        # Try to calibrate dartboard if we have enough reference points
+        # Try to calibrate dartboard if there are enough reference points
         if len(dartboard_points) >= 3 and not score_predictor.is_calibrated():
             if score_predictor.calibrate_dartboard(dartboard_points):
                 print("Dartboard calibrated successfully!")
@@ -124,7 +124,7 @@ if __name__ == "__main__":
             cv2.imwrite(f"output/{i}.jpg", display_frame)
             print(f"Frame saved as output/{i}.jpg")
         if key == ord('c'):
-            # Manual calibration - collect dartboard reference points from YOLO detections
+            # Manual calibration
             if len(dartboard_points) >= 3:
                 score_predictor.calibrate_dartboard(dartboard_points)
                 print("Manual calibration completed!")
