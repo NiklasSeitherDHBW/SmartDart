@@ -27,10 +27,10 @@ class ImageProcessorGUI:
     def __init__(self):
         # Pfade
         self.input_folder = r"C:\Users\CARLO\Downloads\Darts-AL2-Stg3\images\val"
-        self.output_base_folder = r"C:\Users\CARLO\OneDrive\Desktop\Darts\processed_images"
+        self.output_base_folder = r"C:\Users\CARLO\OneDrive\Desktop\Darts\processed_images_yolo8n.pt"
         
         # Verarbeitungsklassen
-        self.predictor = Predictor("models/yolo11n-al2-stg3.pt")  # Anpassung des Modellpfads
+        self.predictor = Predictor("models/yolo8n.pt")  # Anpassung des Modellpfads
         self.score_predictor = DartboardScorePredictor()
         
         # GUI-Variablen
