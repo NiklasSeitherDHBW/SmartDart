@@ -161,22 +161,11 @@ def create_histogram():
         plt.savefig(pdf_path, format='pdf', dpi=300, bbox_inches='tight')
         print(f"📄 PDF gespeichert: {pdf_path}")
         
-        # Als PNG speichern
-        png_path = os.path.join(output_base, "vergleich_train_val.png")
-        plt.savefig(png_path, dpi=300, bbox_inches='tight')
-        print(f"🖼️ PNG gespeichert: {png_path}")
-        
         plt.close()
         
     else:
         print("❌ Nicht genügend Daten für Vergleich verfügbar!")
         return
-    
-    # PNG speichern
-    png_path = os.path.join(output_base, "belichtung_histogramm.png")
-    plt.savefig(png_path, dpi=300, bbox_inches='tight')
-    print(f"🖼️ PNG gespeichert: {png_path}")
-    plt.close()
     
     # Zeige Statistiken
     print("\n" + "="*70)
@@ -196,7 +185,6 @@ def create_histogram():
     print("📄 VERGLEICHSDIAGRAMM ERSTELLT:")
     print("="*50)
     print("📊 vergleich_train_val.pdf - Training vs. Validierung")
-    print("🖼️ vergleich_train_val.png - PNG-Version")
     print("\n✅ Vergleichsdiagramm erfolgreich erstellt!")
 
 if __name__ == "__main__":
