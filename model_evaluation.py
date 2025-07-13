@@ -31,7 +31,7 @@ def count_images_in_folder(folder_path):
 
 def analyze_model(model_name, base_path):
     """Analysiert ein einzelnes Modell."""
-    model_folder = os.path.join(base_path, f"processed_images_helligkeit_{model_name}")
+    model_folder = os.path.join(base_path, f"processed_images_dunkel_{model_name}")
     categorized_path = os.path.join(model_folder, "categorized")
     
     if not os.path.exists(categorized_path):
@@ -91,9 +91,9 @@ def main():
     # Finde alle Modell-Ordner
     model_folders = []
     for folder in os.listdir(base_path):
-        if os.path.isdir(os.path.join(base_path, folder)) and folder.startswith("processed_images_helligkeit_"):
+        if os.path.isdir(os.path.join(base_path, folder)) and folder.startswith("processed_images_dunkel_"):
             # Extrahiere den Modellnamen (alles nach "processed_images_helligkeit_")
-            model_name = folder.replace("processed_images_helligkeit_", "")
+            model_name = folder.replace("processed_images_dunkel_", "")
             model_folders.append(model_name)
     
     if not model_folders:
