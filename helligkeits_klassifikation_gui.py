@@ -16,7 +16,7 @@ class HelligkeitsKlassifikationGUI:
         
         # Pfade
         self.source_folder = r"C:\Users\CARLO\Downloads\Darts-AL2-Stg3\images\val"
-        self.output_base = r"c:\Users\CARLO\OneDrive\Desktop\Darts\klassifikation_ergebnis"
+        self.output_base = r"c:\Users\CARLO\OneDrive\Desktop\Darts\klassifikation_dunkel"
         
         # Ausgabeordner erstellen
         self.create_output_folders()
