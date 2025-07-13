@@ -19,7 +19,6 @@ def create_yolo_annotation(image_path, results, output_dir):
     image = cv2.imread(str(image_path))
     img_height, img_width = image.shape[:2]
     
-    # Create annotation file path
     annotation_path = output_dir / f"{image_path.stem}.txt"
     
     # Group detections by class and sort by confidence
@@ -67,7 +66,7 @@ def create_yolo_annotation(image_path, results, output_dir):
     # 1. For numbers, keep only the highest confidence for each unique class
     for class_id, detections in numbers_by_class.items():
         if detections:
-            # Sort by confidence (highest first) and keep only the first one
+            # Sort by confidence and keep only the highest/first one
             best_detection = sorted(detections, key=lambda x: x['confidence'], reverse=True)[0]
             filtered_detections.append(best_detection)
     
@@ -86,11 +85,10 @@ def create_yolo_annotation(image_path, results, output_dir):
     return len(filtered_detections)
 
 def main():
-    # Paths
+    
     input_dir = Path("training/data/transferlearning/Test2/stg3/good")
     output_dir = Path("training/data/transferlearning/Test2/stg3/labels")
 
-    # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize predictor
