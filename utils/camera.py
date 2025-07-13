@@ -23,13 +23,10 @@ class VideoStreamViewer:
         else:
             self.cap = cv2.VideoCapture(self.source)
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1200)
-            # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 800)
             self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
 
-            # Set manual exposure mode and reduce exposure value significantly
             # Auto exposure mode = 0.75 (auto), 0.25 (manual)
-            self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)  # Set to manual mode
-            # self.cap.set(cv2.CAP_PROP_EXPOSURE, -7.5)  # Negative values mean shorter exposure time
+            self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
             
             # Reduce gain if available
             self.cap.set(cv2.CAP_PROP_GAIN, 0)
