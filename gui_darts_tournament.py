@@ -11,54 +11,53 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 
-# Import your existing modules
 from utils import camera, calibration, predict, score_prediction
 
 
 class Player:
-    """Repräsentiert einen einzelnen Spieler im Spiel."""
+    """Represents a single player in the game."""
     
     def __init__(self, name: str, player_id: int):
         self.name = name
         self.id = player_id
-        self.current_score = 501  # Standard für 501-Spiel
+        self.current_score = 501  # Standard for 501 game
         self.darts_thrown = 0
-        self.turn_scores = []  # Liste der Punkte pro Runde
-        self.game_history = []  # Historie aller Spiele
+        self.turn_scores = []  # List of points per round
+        self.game_history = []  # History of all games
         self.legs_won = 0
         self.sets_won = 0
         
     def reset_game(self, starting_score: int = 501):
-        """Spieler für ein neues Spiel zurücksetzen."""
+        """Reset player for a new game."""
         self.current_score = starting_score
         self.darts_thrown = 0
         self.turn_scores = []
     
     def add_turn_score(self, scores: List[int]):
-        """Punkte aus einer Runde hinzufügen (bis zu 3 Darts)."""
+        """Add points from a round (up to 3 darts)."""
         turn_total = sum(scores)
         self.turn_scores.append(scores)
         self.darts_thrown += len(scores)
         return turn_total
     
     def get_average(self) -> float:
-        """Durchschnittliche Punkte pro Dart berechnen."""
+        """Calculate average points per dart."""
         if self.darts_thrown == 0:
             return 0.0
         total_score = 501 - self.current_score
         return total_score / self.darts_thrown
     
     def can_finish_with_score(self, score: int) -> bool:
-        """Prüfen ob der Spieler mit dieser Punktzahl finishen kann."""
+        """Check if the player can finish with this score."""
         return self.current_score == score and score <= 170
     
     def is_bust(self, score: int) -> bool:
-        """Prüfen ob die Punktzahl ein Bust ist."""
+        """Check if the score is a bust."""
         remaining = self.current_score - score
         return remaining < 0 or remaining == 1
     
     def to_dict(self) -> dict:
-        """Spieler in Dictionary für Speicherung konvertieren."""
+        """Convert player to dictionary for storage."""
         return {
             'name': self.name,
             'id': self.id,
@@ -72,7 +71,7 @@ class Player:
     
     @classmethod
     def from_dict(cls, data: dict) -> 'Player':
-        """Spieler aus Dictionary erstellen."""
+        """Create player from dictionary."""
         player = cls(data['name'], data['id'])
         player.current_score = data.get('current_score', 501)
         player.darts_thrown = data.get('darts_thrown', 0)
@@ -84,39 +83,39 @@ class Player:
 
 
 class GameState:
-    """Verwaltet den gesamten Spielzustand."""
+    """Manages the entire game state."""
     
     def __init__(self):
         self.players: List[Player] = []
         self.current_player_index = 0
-        self.current_dart_count = 0  # Geworfene Darts in aktueller Runde (0-3)
-        self.current_turn_scores = []  # Punkte für aktuelle Runde
-        self.game_mode = "501"  # 501, Cricket, Around the Clock, etc.
+        self.current_dart_count = 0  # Thrown darts in current round (0-3)
+        self.current_turn_scores = []  # Points for current round
+        self.game_mode = "501" 
         self.game_active = False
         self.winner: Optional[Player] = None
         self.legs_to_win = 3
         self.sets_to_win = 2
-        self.auto_advance = True  # Automatisch zur nächsten Runde nach 3 Darts
+        self.auto_advance = True  # Automatically advance to next round after 3 darts
         
     def add_player(self, name: str) -> Player:
-        """Neuen Spieler zum Spiel hinzufügen."""
+        """Add new player to the game."""
         player_id = len(self.players) + 1
         player = Player(name, player_id)
         self.players.append(player)
         return player
     
     def remove_player(self, player: Player):
-        """Spieler aus dem Spiel entfernen."""
+        """Remove player from the game."""
         if player in self.players:
             self.players.remove(player)
-            # Index anpassen falls nötig
+            
             if self.current_player_index >= len(self.players):
                 self.current_player_index = 0
     
     def start_game(self, game_mode: str = "501"):
-        """Neues Spiel starten."""
+        """Start new game."""
         if len(self.players) < 2:
-            raise ValueError("Mindestens 2 Spieler erforderlich")
+            raise ValueError("At least 2 players required")
         
         self.game_mode = game_mode
         self.current_player_index = 0
@@ -125,92 +124,92 @@ class GameState:
         self.game_active = True
         self.winner = None
         
-        # Alle Spieler zurücksetzen
+        # Reset all players
         starting_score = 501 if game_mode == "501" else 0
         for player in self.players:
             player.reset_game(starting_score)
     
     def get_current_player(self) -> Optional[Player]:
-        """Aktuell aktiven Spieler abrufen."""
+        """Get currently active player."""
         if not self.players:
             return None
         return self.players[self.current_player_index]
     
     def add_dart_score(self, score: int, description: str = "") -> bool:
-        """Dart-Punktzahl für aktuellen Spieler hinzufügen. Gibt True zurück wenn Runde komplett ist."""
+        """Add dart score for current player. Returns True if round is complete."""
         if not self.game_active or not self.players:
-            print(f"add_dart_score: Spiel nicht aktiv oder keine Spieler")
+            print(f"add_dart_score: Game not active or no players")
             return False
         
         current_player = self.get_current_player()
         if not current_player:
-            print(f"add_dart_score: Kein aktueller Spieler")
+            print(f"add_dart_score: No current player")
             return False
             
-        print(f"add_dart_score: {score} für {current_player.name} (Dart {self.current_dart_count + 1}/3)")
+        print(f"add_dart_score: {score} for {current_player.name} (Dart {self.current_dart_count + 1}/3)")
         
         self.current_turn_scores.append(score)
         self.current_dart_count += 1
         
-        # Prüfen ob Runde komplett ist (3 Darts oder Bust oder Finish)
+        # Check if round is complete
         turn_complete = False
         if self.current_dart_count >= 3:
             turn_complete = True
-            print(f"add_dart_score: Runde komplett (3 Darts)")
+            print(f"add_dart_score: Round complete (3 darts)")
         elif self.game_mode == "501":
-            # Prüfen auf Bust oder Finish
+            # Check for bust or finish
             turn_total = sum(self.current_turn_scores)
             if current_player.is_bust(turn_total):
                 turn_complete = True
-                print(f"add_dart_score: Bust mit {turn_total} Punkten")
+                print(f"add_dart_score: Bust with {turn_total} points")
             elif current_player.current_score == turn_total:
-                # Gewonnen!
+                
                 current_player.current_score = 0
                 self.winner = current_player
                 self.game_active = False
                 turn_complete = True
-                print(f"add_dart_score: {current_player.name} hat gewonnen!")
+                print(f"add_dart_score: {current_player.name} has won!")
         
         print(f"add_dart_score: turn_complete = {turn_complete}")
         return turn_complete
     
     def complete_turn(self):
-        """Runde des aktuellen Spielers abschließen."""
+        """Complete the current player's turn."""
         if not self.players:
             return
         
         current_player = self.get_current_player()
         turn_total = sum(self.current_turn_scores)
         
-        print(f"complete_turn: {current_player.name}, {turn_total} Punkte, vorher: {current_player.current_score}")
+        print(f"complete_turn: {current_player.name}, {turn_total} points, before: {current_player.current_score}")
         
         if self.game_mode == "501":
             if not current_player.is_bust(turn_total):
                 current_player.current_score -= turn_total
-                print(f"complete_turn: Nach Abzug: {current_player.current_score}")
+                print(f"complete_turn: After deduction: {current_player.current_score}")
             else:
-                print(f"complete_turn: Bust! Punkte bleiben bei {current_player.current_score}")
+                print(f"complete_turn: Bust! Points remain at {current_player.current_score}")
         
-        # Runde aufzeichnen
+        # Save round
         current_player.add_turn_score(self.current_turn_scores.copy())
         
-        # Zum nächsten Spieler wechseln
+        # Switch to next player
         old_player = self.current_player_index
         self.current_player_index = (self.current_player_index + 1) % len(self.players)
         new_player = self.get_current_player()
-        print(f"complete_turn: Wechsel von {current_player.name} zu {new_player.name}")
+        print(f"complete_turn: Switch from {current_player.name} to {new_player.name}")
         
         self.current_dart_count = 0
         self.current_turn_scores = []
     
     def undo_last_dart(self):
-        """Letzten Dart rückgängig machen."""
+        """Undo last dart."""
         if self.current_dart_count > 0:
             self.current_turn_scores.pop()
             self.current_dart_count -= 1
     
     def save_game(self, filepath: str):
-        """Aktuellen Spielzustand in Datei speichern."""
+        """Save current game state to file."""
         data = {
             'players': [player.to_dict() for player in self.players],
             'current_player_index': self.current_player_index,
@@ -224,7 +223,7 @@ class GameState:
             json.dump(data, f, indent=2)
     
     def load_game(self, filepath: str):
-        """Spielzustand aus Datei laden."""
+        """Load game state from file."""
         with open(filepath, 'r') as f:
             data = json.load(f)
         
@@ -237,7 +236,7 @@ class GameState:
 
 
 class DartsGUI:
-    """Haupt-GUI-Anwendung für das Dart-Spiel."""
+    """Main GUI application for the dart game."""
     
     def __init__(self):
         self.root = tk.Tk()
@@ -245,11 +244,11 @@ class DartsGUI:
         self.root.geometry("1600x900")
         self.root.configure(bg='#2C3E50')
         
-        # Spielzustand
+        # Game state
         self.game_state = GameState()
         self.debug_mode = True
         
-        # Computer Vision Komponenten
+        # Computer Vision components
         self.camera = None
         self.calibration = None
         self.predictor = None
@@ -257,40 +256,39 @@ class DartsGUI:
         self.camera_thread = None
         self.camera_running = False
         
-        # GUI Variablen
+        # GUI variables
         self.video_label = None
         self.player_frames = {}
-        self.status_var = tk.StringVar(value="Willkommen zum Darts Turnier!")
-        self.turn_info_var = tk.StringVar(value="Spieler hinzufügen zum Starten")
+        self.status_var = tk.StringVar(value="Welcome to Darts Tournament!")
+        self.turn_info_var = tk.StringVar(value="Add players to start")
         self.dartboard_calibrated = False
         
-        # Kamera Settings
+        # Camera settings
         self.camera_source = 1
         self.use_image_folder = False
         self.image_folder_path = "training/data/transferlearning/stg1/raw"
         
-        # Dart-Detection Cache für konsistente Anzeige
-        self.last_dart_positions = []       # Für Anzeige zwischen Frames
-        self.processed_dart_positions = []  # Für Anti-Duplikat-Logik
-        self.blacklisted_dart_positions = []  # Für gesamten Zug ignorierte Dart-Positionen
+        # Dart detection cache for consistent display
+        self.last_dart_positions = []       # For display between frames
+        self.processed_dart_positions = []  # For anti-duplicate logic
+        self.blacklisted_dart_positions = []  # For entire turn ignored dart positions
         self.last_dart_scores = []
         
-        # Dart-Erkennung Stabilisierung
-        self.dart_detection_cooldown = 0  # Frames bis zur nächsten Detection
-        self.stable_dart_positions = []  # Stabile Dart-Positionen
-        self.detection_confirmation_frames = 3  # Frames für Bestätigung
-        self.dart_position_tolerance = 30  # Pixel-Toleranz für gleiche Position
-        
-        # Anti-Spam für Dart-Verarbeitung
-        self._currently_processing_dart = False  # Verhindert gleichzeitige Dart-Verarbeitung
-        
-        # Cooldown nach 3 Darts
-        self.turn_complete_cooldown = 0  # Cooldown nach kompletter Runde (in Frames)
-        self.turn_complete_cooldown_duration = 100  # 10 Sekunden bei 30 FPS
-        self.board_empty_check_frames = 0  # Frames ohne Dart-Erkennung
-        self.board_empty_required_frames = 10  # 1 Sekunde ohne Darts = Board leer
-        self.turn_ready_to_complete = False  # Flag dass Runde bereit zum Abschluss ist
-        
+        # Dart detection stabilization
+        self.dart_detection_cooldown = 0  # Frames until next detection
+        self.stable_dart_positions = []  # Stable dart positions
+        self.detection_confirmation_frames = 3  # Frames for confirmation
+        self.dart_position_tolerance = 30  # Pixel-tolerance for same position
+
+        self._currently_processing_dart = False  # Prevents simultaneous dart processing
+
+        # Cooldown after 3 darts
+        self.turn_complete_cooldown = 0  # Cooldown after complete turn
+        self.turn_complete_cooldown_duration = 100
+        self.board_empty_check_frames = 0  # Frames without dart detection
+        self.board_empty_required_frames = 10  # 1 second without darts = board empty
+        self.turn_ready_to_complete = False  # Flag that turn is ready to complete
+
         # Create GUI
         self.setup_gui()
         self.setup_computer_vision()
@@ -299,56 +297,56 @@ class DartsGUI:
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
     def setup_gui(self):
-        """Haupt-GUI-Layout einrichten."""
+        """Set up main GUI layout."""
         self.create_menu()
         self.create_header()
         self.create_main_content()
         self.create_status_bar()
         
     def create_menu(self):
-        """Menüleiste erstellen."""
+        """Create menu bar."""
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
         
-        # Spiel Menü
+        # game menu
         game_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Spiel", menu=game_menu)
-        game_menu.add_command(label="Neues Spiel", command=self.new_game)
-        game_menu.add_command(label="Spiel speichern", command=self.save_game)
-        game_menu.add_command(label="Spiel laden", command=self.load_game)
+        menubar.add_cascade(label="Game", menu=game_menu)
+        game_menu.add_command(label="New Game", command=self.new_game)
+        game_menu.add_command(label="Save Game", command=self.save_game)
+        game_menu.add_command(label="Load Game", command=self.load_game)
         game_menu.add_separator()
-        game_menu.add_command(label="Beenden", command=self.root.quit)
+        game_menu.add_command(label="Exit", command=self.root.quit)
         
-        # Spieler Menü
+        # player menu
         players_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Spieler", menu=players_menu)
-        players_menu.add_command(label="Spieler hinzufügen", command=self.add_player)
-        players_menu.add_command(label="Spieler entfernen", command=self.remove_selected_player)
-        
-        # Einstellungen Menü
+        menubar.add_cascade(label="Player", menu=players_menu)
+        players_menu.add_command(label="Add Player", command=self.add_player)
+        players_menu.add_command(label="Remove Player", command=self.remove_selected_player)
+
+        # settings menu
         settings_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Einstellungen", menu=settings_menu)
-        settings_menu.add_command(label="Kamera-Einstellungen", command=self.camera_settings)
-        settings_menu.add_command(label="Spiel-Einstellungen", command=self.game_settings)
+        menubar.add_cascade(label="Settings", menu=settings_menu)
+        settings_menu.add_command(label="Camera Settings", command=self.camera_settings)
+        settings_menu.add_command(label="Game Settings", command=self.game_settings)
         settings_menu.add_separator()
-        settings_menu.add_command(label="Dartboard kalibrieren", command=self.calibrate_dartboard)
-        settings_menu.add_command(label="Kalibrierung zurücksetzen", command=self.reset_calibration)
+        settings_menu.add_command(label="Calibrate Dartboard", command=self.calibrate_dartboard)
+        settings_menu.add_command(label="Reset Calibration", command=self.reset_calibration)
         settings_menu.add_separator()
-        settings_menu.add_command(label="Debug umschalten", command=self.toggle_debug)
-    
+        settings_menu.add_command(label="Toggle Debug", command=self.toggle_debug)
+
     def create_header(self):
-        """Header mit Spielinfo erstellen."""
+        """Create header with game info."""
         header_frame = tk.Frame(self.root, bg='#34495E', height=70)
         header_frame.pack(fill='x', padx=5, pady=5)
         header_frame.pack_propagate(False)
-        
-        # Spiel Titel
+
+        # Game Title
         title_label = tk.Label(header_frame, text="🎯 SmartDart", 
                               font=('Arial', 24, 'bold'), 
                               fg='white', bg='#34495E')
         title_label.pack(side='left', padx=20, pady=20)
-        
-        # Runden Info
+
+        # Turn Info
         turn_frame = tk.Frame(header_frame, bg='#34495E')
         turn_frame.pack(side='right', padx=20, pady=20)
         
@@ -358,19 +356,19 @@ class DartsGUI:
         turn_label.pack()
     
     def create_main_content(self):
-        """Hauptinhalt-Bereich erstellen."""
+        """Create main content area."""
         main_frame = tk.Frame(self.root, bg='#2C3E50')
         main_frame.pack(fill='both', expand=True, padx=5, pady=5)
-        
-        # Linkes Panel - Kamera und Steuerung
+
+        # Camera and Controls
         left_panel = tk.Frame(main_frame, bg='#34495E', width=800)
         left_panel.pack(side='left', fill='both', expand=True, padx=(0, 5))
         left_panel.pack_propagate(False)
         
         self.create_camera_panel(left_panel)
         self.create_control_panel(left_panel)
-        
-        # Rechtes Panel - Spieler und Punkte
+
+        # Players and Scores
         right_panel = tk.Frame(main_frame, bg='#34495E', width=700)
         right_panel.pack(side='right', fill='both', padx=(5, 0))
         right_panel.pack_propagate(False)
@@ -378,22 +376,22 @@ class DartsGUI:
         self.create_players_panel(right_panel)
     
     def create_camera_panel(self, parent):
-        """Kamera-Anzeige-Panel erstellen."""
-        camera_frame = tk.LabelFrame(parent, text="Kamera Feed", 
+        """Create camera feed panel."""
+        camera_frame = tk.LabelFrame(parent, text="Camera Feed", 
                                    font=('Arial', 14, 'bold'),
                                    fg='white', bg='#34495E', height=450)
         camera_frame.pack(fill='x', expand=False, padx=10, pady=10)
-        camera_frame.pack_propagate(False)  # Größe fixieren
-        
-        # Kamera Anzeige
-        self.video_label = tk.Label(camera_frame, bg='black', 
-                                   text="Kamera nicht initialisiert\nKlicken Sie 'Kamera starten'",
+        camera_frame.pack_propagate(False)
+
+        # Camera Display
+        self.video_label = tk.Label(camera_frame, bg='black',
+                                   text="Camera not initialized\nClick 'Start Camera'",
                                    fg='white', font=('Arial', 16))
         self.video_label.pack(padx=5, pady=5)
     
     def create_control_panel(self, parent):
-        """Spiel-Steuerungs-Panel erstellen."""
-        control_frame = tk.LabelFrame(parent, text="Spiel Steuerung", 
+        """Create control panel."""
+        control_frame = tk.LabelFrame(parent, text="Control Panel",
                                     font=('Arial', 14, 'bold'),
                                     fg='white', bg='#34495E', height=140)
         control_frame.pack(fill='x', padx=10, pady=(0, 10))
@@ -402,50 +400,50 @@ class DartsGUI:
         # Button Frame
         button_frame = tk.Frame(control_frame, bg='#34495E')
         button_frame.pack(expand=True, fill='both', padx=10, pady=10)
-        
-        # Kamera Steuerung
+
+        # Camera Controls
         camera_btn_frame = tk.Frame(button_frame, bg='#34495E')
         camera_btn_frame.pack(side='left', fill='y')
-        
-        self.camera_btn = tk.Button(camera_btn_frame, text="Kamera starten", 
+
+        self.camera_btn = tk.Button(camera_btn_frame, text="Start Camera", 
                                    font=('Arial', 11, 'bold'),
                                    bg='#27AE60', fg='white',
                                    command=self.toggle_camera, width=14)
         self.camera_btn.pack(pady=2)
-        
-        calibrate_btn = tk.Button(camera_btn_frame, text="Kalibrieren", 
+
+        calibrate_btn = tk.Button(camera_btn_frame, text="Calibrate", 
                                 font=('Arial', 11, 'bold'),
                                 bg='#3498DB', fg='white',
                                 command=self.calibrate_dartboard, width=14)
         calibrate_btn.pack(pady=2)
-        
-        reset_cal_btn = tk.Button(camera_btn_frame, text="Kalibrierung Reset", 
+
+        reset_cal_btn = tk.Button(camera_btn_frame, text="Calibration Reset", 
                                 font=('Arial', 9, 'bold'),
                                 bg='#E67E22', fg='white',
                                 command=self.reset_calibration, width=14)
         reset_cal_btn.pack(pady=2)
-        
-        # Spiel Steuerung
+
+        # Game Controls
         game_btn_frame = tk.Frame(button_frame, bg='#34495E')
         game_btn_frame.pack(side='left', fill='y', padx=(20, 0))
-        
-        new_game_btn = tk.Button(game_btn_frame, text="Neues Spiel", 
+
+        new_game_btn = tk.Button(game_btn_frame, text="New Game", 
                                font=('Arial', 11, 'bold'),
                                bg='#E67E22', fg='white',
                                command=self.new_game, width=14)
         new_game_btn.pack(pady=2)
-        
-        self.next_turn_btn = tk.Button(game_btn_frame, text="Nächste Runde", 
+
+        self.next_turn_btn = tk.Button(game_btn_frame, text="Next Turn", 
                                      font=('Arial', 11, 'bold'),
                                      bg='#9B59B6', fg='white',
                                      command=self.next_turn, width=14)
         self.next_turn_btn.pack(pady=2)
-        
-        # Manuelle Punkteeingabe
+
+        # Manual Score Entry
         manual_frame = tk.Frame(button_frame, bg='#34495E')
         manual_frame.pack(side='right', fill='y')
-        
-        tk.Label(manual_frame, text="Manuelle Punkte:", 
+
+        tk.Label(manual_frame, text="Manual Points:", 
                 font=('Arial', 10), fg='white', bg='#34495E').pack()
         
         score_entry_frame = tk.Frame(manual_frame, bg='#34495E')
@@ -462,20 +460,20 @@ class DartsGUI:
                                 command=self.add_manual_score, width=3)
         add_score_btn.pack(side='left', padx=(2, 0))
         
-        undo_btn = tk.Button(manual_frame, text="↶ Rückgängig", 
+        undo_btn = tk.Button(manual_frame, text="↶ Undo", 
                            font=('Arial', 10, 'bold'),
                            bg='#E74C3C', fg='white',
                            command=self.undo_last_dart, width=12)
         undo_btn.pack(pady=(5, 0))
     
     def create_players_panel(self, parent):
-        """Spieler-Panel erstellen."""
-        players_frame = tk.LabelFrame(parent, text="Spieler & Punktestände", 
+        """Create players panel."""
+        players_frame = tk.LabelFrame(parent, text="Players & Scores", 
                                     font=('Arial', 14, 'bold'),
                                     fg='white', bg='#34495E')
         players_frame.pack(fill='both', expand=True, padx=10, pady=10)
-        
-        # Scrollbarer Bereich für Spieler
+
+        # Scrollable area for players
         canvas = tk.Canvas(players_frame, bg='#34495E', highlightthickness=0)
         scrollbar = ttk.Scrollbar(players_frame, orient="vertical", command=canvas.yview)
         self.scrollable_frame = tk.Frame(canvas, bg='#34495E')
@@ -490,19 +488,19 @@ class DartsGUI:
         
         canvas.pack(side="left", fill="both", expand=True, padx=5, pady=5)
         scrollbar.pack(side="right", fill="y")
-        
-        # Spieler hinzufügen Button
+
+        # Add Player Button
         add_player_frame = tk.Frame(self.scrollable_frame, bg='#34495E')
         add_player_frame.pack(fill='x', pady=5)
-        
-        add_player_btn = tk.Button(add_player_frame, text="➕ Spieler hinzufügen", 
+
+        add_player_btn = tk.Button(add_player_frame, text="➕ Add Player", 
                                  font=('Arial', 12, 'bold'),
                                  bg='#3498DB', fg='white',
                                  command=self.add_player)
         add_player_btn.pack(pady=5)
         
     def create_status_bar(self):
-        """Status-Leiste erstellen."""
+        """Create status bar."""
         status_frame = tk.Frame(self.root, bg='#34495E', height=30)
         status_frame.pack(fill='x', side='bottom')
         status_frame.pack_propagate(False)
@@ -512,30 +510,30 @@ class DartsGUI:
         status_label.pack(side='left', padx=10, pady=5)
         
         # Dartboard Status
-        self.dartboard_status_var = tk.StringVar(value="Dartboard: Nicht kalibriert")
+        self.dartboard_status_var = tk.StringVar(value="Dartboard not calibrated")
         dartboard_status = tk.Label(status_frame, textvariable=self.dartboard_status_var,
                                    font=('Arial', 10), fg='orange', bg='#34495E')
         dartboard_status.pack(side='right', padx=10, pady=5)
     
     def setup_computer_vision(self):
-        """Computer Vision Komponenten einrichten."""
+        """Set up computer vision components."""
         try:
             # Initialize components but don't start camera yet
             self.predictor = predict.Predictor(model_path="models/yolo8n-pretrained-al2-stg3.pt")
             self.score_predictor = score_prediction.DartboardScorePredictor()
-            self.update_status("Computer Vision Komponenten geladen")
+            self.update_status("Computer vision components loaded")
         except Exception as e:
-            self.update_status(f"Fehler beim Laden der CV-Komponenten: {e}")
+            self.update_status(f"Error loading CV components: {e}")
     
     def toggle_camera(self):
-        """Kamera ein/aus schalten."""
+        """Switch camera on/off."""
         if self.camera_running:
             self.stop_camera()
         else:
             self.start_camera()
     
     def start_camera(self):
-        """Kamera starten."""
+        """Start camera."""
         try:
             # Stop existing camera first
             if self.camera_running:
@@ -551,119 +549,118 @@ class DartsGUI:
             
             self.camera.open_connection()
             if not self.camera.isOpened():
-                messagebox.showerror("Fehler", "Kamera konnte nicht geöffnet werden")
+                messagebox.showerror("Error", "Camera could not be opened")
                 return
             
             # Test if camera can provide a frame
             test_frame = self.camera.get_frame_raw()
             if test_frame is None:
-                messagebox.showerror("Fehler", "Kamera liefert keine Bilder")
+                messagebox.showerror("Error", "Camera is not providing frames")
                 self.camera.release()
                 return
             
             self.camera_running = True
-            self.camera_btn.configure(text="Kamera stoppen", bg='#E74C3C')
+            self.camera_btn.configure(text="Stop Camera", bg='#E74C3C')
             
-            # Initialize calibration components (but don't calibrate yet)
+            # Initialize calibration components
             self.calibration = calibration.CameraCalibration(
                 ref_img="resources/dartboard-gerade.jpg", 
                 debug=self.debug_mode
             )
             
-            # Set initial status (not calibrated)
+            # Set initial status
             self.dartboard_calibrated = False
-            self.dartboard_status_var.set("Dartboard: Nicht kalibriert")
-            
+            self.dartboard_status_var.set("Dartboard not calibrated")
+
             # Start camera thread
             self.camera_thread = threading.Thread(target=self.camera_loop, daemon=True)
             self.camera_thread.start()
-            
-            self.update_status("Kamera gestartet - Drücken Sie 'Kalibrieren' für Dartboard-Kalibrierung")
+
+            self.update_status("Camera started - Press 'Calibrate' for dartboard calibration")
             
         except Exception as e:
-            error_msg = f"Fehler beim Starten der Kamera: {e}"
-            messagebox.showerror("Fehler", error_msg)
-            self.update_status(f"Kamera-Fehler: {e}")
+            error_msg = f"Error starting camera: {e}"
+            messagebox.showerror("Error", error_msg)
+            self.update_status(f"Camera error: {e}")
             
-            # Cleanup on error
             try:
                 if hasattr(self, 'camera') and self.camera:
                     self.camera.release()
                 self.camera_running = False
-                self.camera_btn.configure(text="Kamera starten", bg='#27AE60')
+                self.camera_btn.configure(text="Start Camera", bg='#27AE60')
             except:
                 pass
     
     def stop_camera(self):
-        """Kamera stoppen."""
+        """Stop camera."""
         self.camera_running = False
         if self.camera:
             self.camera.release()
-        
-        self.camera_btn.configure(text="Kamera starten", bg='#27AE60')
-        self.video_label.configure(image='', text="Kamera gestoppt\nKlicken Sie 'Kamera starten'")
-        
-        self.update_status("Kamera gestoppt")
-    
+
+        self.camera_btn.configure(text="Start Camera", bg='#27AE60')
+        self.video_label.configure(image='', text="Camera stopped\nClick 'Start Camera'")
+
+        self.update_status("Camera stopped")
+
     def camera_loop(self):
-        """Hauptschleife für Kamera-Verarbeitung."""
+        """Main loop for camera processing."""
         frame_count = 0
         
         while self.camera_running:
             try:
                 frame = self.camera.get_frame_raw()
                 if frame is None:
-                    time.sleep(0.033)  # Warte kurz wenn kein Frame verfügbar
+                    time.sleep(0.033)  # Wait briefly if no frame is available
                     continue
                 
                 frame_count += 1
-                
-                # Frame verarbeiten - entweder kalibriert oder original
+
+                # Process frame
                 if self.dartboard_calibrated and self.calibration and self.calibration.H is not None:
-                    # Verwende gespeicherte Kalibrierung für alle Frames
+                    # Use stored calibration for all frames
                     try:
                         processed_frame = self.calibration.warp_frame(frame)
                         if processed_frame is None:
                             processed_frame = frame
                     except Exception as warp_e:
-                        print(f"Warping-Fehler: {warp_e}")
+                        print(f"Warping error: {warp_e}")
                         processed_frame = frame
                 else:
-                    # Zeige Original-Frame wenn nicht kalibriert
+                    # Show original frame if not calibrated
                     processed_frame = frame
-                
-                # Performance: Nur jeden 3. Frame vollständig verarbeiten für YOLO
+
+                # Performance: Only fully process every 3rd frame for YOLO
                 full_processing = (frame_count % 3 == 0)
-                
-                # Cooldown-Logik verwalten
+
+                # Manage cooldown logic
                 if self.dart_detection_cooldown > 0:
                     self.dart_detection_cooldown -= 1
                 
                 if self.turn_complete_cooldown > 0:
                     self.turn_complete_cooldown -= 1
-                    # Update Turn-Display während Cooldown
-                    if frame_count % 10 == 0:  # Alle 10 Frames (ca. 3x pro Sekunde)
+            
+                    if frame_count % 10 == 0:
                         self.root.after(0, self.update_turn_display)
                     
-                    # Automatisches Ende des Cooldowns nach Ablauf der Zeit
+                    # Automatic end of cooldown after time has elapsed
                     if self.turn_complete_cooldown <= 0:
-                        print("⏰ Turn-Complete-Cooldown automatisch abgelaufen!")
+                        print("Turn-Complete-Cooldown automatically expired!")
                         self.board_empty_check_frames = 0
                         self.reset_dart_detection_state()
                         
-                        # Prüfe ob Runde bereit zum Abschluss ist und schließe sie ab
+                        # Check if round is ready to complete and finish it
                         if self.turn_ready_to_complete:
-                            print("⏰ Cooldown abgelaufen und Runde bereit - schließe Runde ab")
+                            print("Cooldown expired and round ready - finish round")
                             self.turn_ready_to_complete = False
                             self.root.after(0, self.complete_current_turn)
                         
-                        # Update Turn-Display sofort
+                        # Update turn display immediately
                         self.root.after(0, self.update_turn_display)
                 
                 # Create display frame
                 display_frame = processed_frame.copy()
                 
-                # Overlay dartboard template IMMER wenn kalibriert (nicht nur bei YOLO-Frames)
+                # Overlay dartboard template 
                 if self.score_predictor and self.score_predictor.is_calibrated():
                     try:
                         display_frame = self.score_predictor.overlay_dartboard_template(
@@ -672,32 +669,32 @@ class DartsGUI:
                             template_color=(0, 255, 255)
                         )
                     except Exception as overlay_e:
-                        print(f"Overlay-Fehler: {overlay_e}")
+                        print(f"Overlay error: {overlay_e}")
                         display_frame = processed_frame
                 
-                # Zeige gespeicherte Dart-Scores bei ALLEN Frames (nicht nur bei YOLO-Frames)
+                # Show saved dart scores
                 if (self.score_predictor and self.score_predictor.is_calibrated() and 
                     self.last_dart_positions and not full_processing):
                     try:
-                        # Verwende gespeicherte Dart-Positionen für konsistente Anzeige
+                        # Use saved dart positions for consistent display
                         display_frame, _ = self.score_predictor.process_dart_detections(
                             display_frame, 
                             self.last_dart_positions, 
                             show_scores=True
                         )
                     except Exception as cached_detection_e:
-                        print(f"Cached Dart-Detection Fehler: {cached_detection_e}")
+                        print(f"Cached dart detection error: {cached_detection_e}")
                 
-                # Nur bei jedem 3. Frame YOLO-Verarbeitung und Dart-Erkennung
+                # Only every 3rd frame YOLO processing and dart detection
                 if not full_processing:
                     self.update_video_display(display_frame)
                     continue
                 
-                # YOLO Prediction nur auf verarbeitetem Frame
+                # YOLO prediction only on processed frame
                 try:
                     results = self.predictor.predict(processed_frame)
                 except Exception as pred_e:
-                    print(f"YOLO Prediction Fehler: {pred_e}")
+                    print(f"YOLO prediction error: {pred_e}")
                     self.update_video_display(processed_frame)
                     continue
                 
@@ -718,7 +715,7 @@ class DartsGUI:
                                 else:
                                     dartboard_points.append((x_center, y_center))
                             except Exception as box_e:
-                                print(f"Box-Verarbeitung Fehler: {box_e}")
+                                print(f"Box processing error: {box_e}")
                                 continue
                 
                 # Calibrate score predictor if needed
@@ -727,42 +724,42 @@ class DartsGUI:
                     not self.score_predictor.is_calibrated()):
                     try:
                         if self.score_predictor.calibrate_dartboard(dartboard_points):
-                            self.root.after(0, lambda: self.update_status("Dartboard-Punkte-System kalibriert!"))
+                            self.root.after(0, lambda: self.update_status("Dartboard point system calibrated!"))
                     except Exception as score_cal_e:
-                        print(f"Score-Predictor Kalibrierung Fehler: {score_cal_e}")
+                        print(f"Score predictor calibration error: {score_cal_e}")
                 
-                # Process dart detections und Score-Anzeige hinzufügen
+                # Process dart detections and add score display
                 if self.score_predictor and self.score_predictor.is_calibrated() and dart_positions:
                     try:
-                        # Filtere und stabilisiere Dart-Positionen
+                        # Filter and stabilize dart positions
                         filtered_positions = self.filter_duplicate_darts(dart_positions)
                         
-                        # Reset board_empty_check_frames da Darts erkannt wurden
+                        # Reset board_empty_check_frames since darts were detected
                         self.board_empty_check_frames = 0
                         
-                        # IMMER Score-Berechnung und Anzeige für aktuelle Positionen
+                        # Score calculation and display for current positions
                         display_frame, dart_scores = self.score_predictor.process_dart_detections(
                             display_frame, 
                             filtered_positions, 
                             show_scores=True
                         )
                         
-                        # Speichere Positionen für konsistente Anzeige zwischen Frames
+                        # Save positions for consistent display between frames
                         self.last_dart_positions = filtered_positions.copy()
                         
-                        # Prüfe ob Detection verarbeitet werden soll (Anti-Duplikat-Logik)
+                        # Check if detection should be processed
                         should_process = self.should_process_dart_detection(filtered_positions)
                         
-                        # Process detected darts automatically - nur bei neuen Erkennungen
+                        # Process detected darts automatically
                         if should_process and dart_scores:
-                            print(f"✓ should_process=True, {len(dart_scores)} Dart-Scores: {dart_scores}")
+                            print(f"✓ should_process=True, {len(dart_scores)} dart scores: {dart_scores}")
                             print(f"  game_active: {self.game_state.game_active}")
                             print(f"  current_player: {self.game_state.get_current_player().name if self.game_state.get_current_player() else 'None'}")
                             print(f"  current_dart_count: {self.game_state.current_dart_count}")
                             print(f"  turn_complete_cooldown: {self.turn_complete_cooldown}")
                             
-                            # Setze längeren Cooldown um Spam zu verhindern
-                            self.dart_detection_cooldown = 60  # 2 Sekunden bei 30 FPS
+                            # Set longer cooldown to prevent spam
+                            self.dart_detection_cooldown = 60 
                             
                             self.last_dart_scores = dart_scores.copy() if dart_scores else []
                             self.root.after(0, lambda scores=dart_scores: self.process_detected_darts(scores))
@@ -770,38 +767,38 @@ class DartsGUI:
                         else:
                             print(f"✗ should_process={should_process}, dart_scores={len(dart_scores) if dart_scores else 0}, game_active={self.game_state.game_active}")
                             if self.dart_detection_cooldown > 0:
-                                print(f"  Dart-Detection-Cooldown aktiv: {self.dart_detection_cooldown}")
+                                print(f"  Dart detection cooldown active: {self.dart_detection_cooldown}")
                             if self.turn_complete_cooldown > 0:
-                                print(f"  Turn-Complete-Cooldown aktiv: {self.turn_complete_cooldown}")
+                                print(f"  Turn complete cooldown active: {self.turn_complete_cooldown}")
                             if not dart_scores:
-                                print(f"  Keine Dart-Scores")
+                                print(f"  No dart scores")
                             if not self.game_state.game_active:
-                                print(f"  Spiel nicht aktiv")
+                                print(f"  Game not active")
                         
                     except Exception as detection_e:
-                        print(f"Dart-Detection Fehler: {detection_e}")
+                        print(f"Dart detection error: {detection_e}")
                 elif self.score_predictor and self.score_predictor.is_calibrated() and not dart_positions:
-                    # Keine Darts erkannt - zähle Frames für "leeres Board"
+                    # No darts detected 
                     self.board_empty_check_frames += 1
                     
-                    # Nach ausreichend Frames ohne Darts UND aktiver Turn-Complete-Cooldown: Board als leer betrachten
+                    # After sufficient frames without darts and active turn-complete-cooldown consider board as empty
                     if (self.board_empty_check_frames >= self.board_empty_required_frames and 
                         self.turn_complete_cooldown > 0):
-                        print(f"🔄 Board ist leer nach {self.board_empty_check_frames} Frames! Reset Turn-Complete-Cooldown (war {self.turn_complete_cooldown})")
+                        print(f"🔄 Board is empty after {self.board_empty_check_frames} frames! Reset turn-complete-cooldown (was {self.turn_complete_cooldown})")
                         self.turn_complete_cooldown = 0
                         self.board_empty_check_frames = 0
                         self.reset_dart_detection_state()
                         
-                        # Prüfe ob Runde bereit zum Abschluss ist und schließe sie ab
+                        # Check if round is ready to complete and finish it
                         if self.turn_ready_to_complete:
-                            print("🔄 Board ist leer und Runde bereit - schließe Runde ab")
+                            print("🔄 Board is empty and round ready - finish round")
                             self.turn_ready_to_complete = False
                             self.root.after(0, self.complete_current_turn)
                         
-                        # Update Turn-Display sofort
+                        # Update turn display
                         self.root.after(0, self.update_turn_display)
                     
-                    # Lösche Dart-Cache nach einer Weile wenn kein Cooldown aktiv
+                    # Clear dart cache after a while if no cooldown is active
                     if self.dart_detection_cooldown <= 0 and self.turn_complete_cooldown <= 0:
                         self.reset_dart_detection_state()
                 
@@ -812,13 +809,13 @@ class DartsGUI:
                             annotated = result.plot()
                             # Could show this in a separate window if needed
                     except Exception as debug_e:
-                        print(f"Debug-Anzeige Fehler: {debug_e}")
+                        print(f"Debug display error: {debug_e}")
                 
                 self.update_video_display(display_frame)
                 
             except Exception as e:
-                print(f"Fehler in camera_loop: {e}")
-                # Bei größeren Fehlern, verwende Original-Frame
+                print(f"Error in camera_loop: {e}")
+                # For major errors use original frame
                 try:
                     if 'frame' in locals() and frame is not None:
                         self.update_video_display(frame)
@@ -827,26 +824,26 @@ class DartsGUI:
                 time.sleep(0.1)
     
     def update_video_display(self, frame):
-        """Video-Anzeige aktualisieren."""
+        """Update video display."""
         if frame is None:
             return
             
         try:
             # Check if frame is valid
             if len(frame.shape) != 3 or frame.shape[2] != 3:
-                print(f"Ungültiger Frame: {frame.shape}")
+                print(f"Invalid frame: {frame.shape}")
                 return
                 
-            # IMMER Frame auf maximale Display-Größe skalieren
+            # Scale frame to maximum display size
             height, width = frame.shape[:2]
-            max_width, max_height = 540, 420  # Weitere Reduzierung für bessere GUI-Sichtbarkeit
+            max_width, max_height = 540, 420  
             
-            # Berechne Skalierungsfaktor um Seitenverhältnis beizubehalten
+            # Calculate scaling factor to maintain aspect ratio
             scale = min(max_width/width, max_height/height)
             new_width = int(width * scale)
             new_height = int(height * scale)
             
-            # Frame IMMER skalieren (auch wenn er kleiner ist, für Konsistenz)
+            # Scale frame
             frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_AREA)
             
             # Convert to RGB and create PhotoImage
@@ -858,185 +855,185 @@ class DartsGUI:
             self.root.after(0, self._update_video_label, photo)
             
         except Exception as e:
-            print(f"Fehler bei Video-Anzeige: {e}")
-            # Try to show error message in video display
+            print(f"Error in video display: {e}")
+            
             try:
                 self.root.after(0, lambda: self.video_label.configure(
                     image='', 
-                    text=f"Video-Fehler:\n{str(e)[:50]}...",
+                    text=f"Video error:\n{str(e)[:50]}...",
                     fg='red'
                 ))
             except:
                 pass
     
     def _update_video_label(self, photo):
-        """Video-Label in Haupt-Thread aktualisieren."""
+        """Update video label in main thread."""
         try:
             if self.video_label and photo:
                 self.video_label.configure(image=photo, text="", fg='white')
                 self.video_label.image = photo  # Keep reference to prevent garbage collection
         except Exception as e:
-            print(f"Fehler beim Video-Label Update: {e}")
+            print(f"Error updating video label: {e}")
             try:
                 if self.video_label:
                     self.video_label.configure(
                         image='', 
-                        text="Video-Display Fehler", 
+                        text="Video Display Error", 
                         fg='red'
                     )
             except:
                 pass
     
     def process_detected_darts(self, dart_scores: List[Tuple[int, str]]):
-        """Erkannte Darts verarbeiten."""
-        print(f"process_detected_darts: Eingegangen mit {len(dart_scores) if dart_scores else 0} Dart-Scores")
+        """Process detected darts."""
+        print(f"process_detected_darts: Received {len(dart_scores) if dart_scores else 0} dart scores")
         print(f"process_detected_darts: game_active = {self.game_state.game_active}")
         
         if not dart_scores:
-            print("process_detected_darts: Keine Dart-Scores")
+            print("process_detected_darts: No dart scores")
             return
             
-        # Prüfe ob wir gerade einen Dart verarbeiten (Anti-Spam)
+        # Check if we're currently processing a dart
         if hasattr(self, '_currently_processing_dart') and self._currently_processing_dart:
-            print("process_detected_darts: Dart wird bereits verarbeitet, ignoriere")
+            print("process_detected_darts: Dart is already being processed, ignore")
             return
             
-        # Setze Processing-Flag
+        # Set processing flag
         self._currently_processing_dart = True
         
         try:
             if not self.game_state.game_active:
-                print("process_detected_darts: Spiel nicht aktiv - starte automatisch ein Spiel")
-                # Automatisch ein Spiel starten wenn Spieler vorhanden sind
+                print("process_detected_darts: Game not active - start game automatically")
+                # Automatically start a game if players are available
                 if len(self.game_state.players) >= 2:
                     self.game_state.start_game()
-                    self.update_status("Spiel automatisch gestartet wegen Dart-Erkennung")
+                    self.update_status("Game automatically started due to dart detection")
                     self.update_all_displays()
                 else:
-                    print("process_detected_darts: Nicht genug Spieler für automatischen Start")
+                    print("process_detected_darts: Not enough players for automatic start")
                     return
             
-            # Only process if we're waiting for darts
+            # Only process if waiting for darts
             current_player = self.game_state.get_current_player()
             if not current_player:
-                print("process_detected_darts: Kein aktueller Spieler")
+                print("process_detected_darts: No current player")
                 return
             
-            # Prüfe ob wir noch Darts für diese Runde erwarten
+            # Check if still expecting darts for this round
             if self.game_state.current_dart_count >= 3:
-                print(f"process_detected_darts: Runde bereits komplett ({self.game_state.current_dart_count}/3)")
+                print(f"process_detected_darts: Round already complete ({self.game_state.current_dart_count}/3)")
                 return
             
-            # Nimm nur den ersten erkannten Dart UND entferne ähnliche aus processed_dart_positions
+            # Take only the first detected dart and remove similar ones from processed_dart_positions
             score, description = dart_scores[0]
-            print(f"Verarbeite EINEN Dart: {score} ({description}) für {current_player.name} (Dart {self.game_state.current_dart_count + 1}/3)")
+            print(f"Process ONE dart: {score} ({description}) for {current_player.name} (Dart {self.game_state.current_dart_count + 1}/3)")
             
-            # Finde die entsprechende neue Position und markiere sie als verarbeitet
-            # Suche die erste Position die NICHT bereits verarbeitet wurde
+            # Find the corresponding new position and mark it as processed
+            # Search for the first position that has not already been processed
             new_position_found = None
             for i, (dart_score, dart_desc) in enumerate(dart_scores):
-                # Versuche die entsprechende Position zu finden
+                # Try to find the corresponding position
                 if i < len(self.last_dart_positions):
                     candidate_pos = self.last_dart_positions[i]
-                    # Prüfe ob diese Position bereits verarbeitet wurde
+                    # Check if this position has already been processed
                     is_already_processed = any(
                         self.are_positions_similar(candidate_pos, processed_pos, self.dart_position_tolerance)
                         for processed_pos in self.processed_dart_positions
                     )
                     if not is_already_processed:
                         new_position_found = candidate_pos
-                        # Verwende den entsprechenden Score, nicht nur den ersten
+                        # Use the corresponding score
                         score, description = dart_score, dart_desc
-                        print(f"Verwende Position {new_position_found} mit Score {score} ({description})")
+                        print(f"Use position {new_position_found} with score {score} ({description})")
                         break
             
-            # Füge die neue Position zu verarbeiteten hinzu
+            # Add the new position to processed ones
             if new_position_found:
                 self.processed_dart_positions.append(new_position_found)
-                print(f"Position {new_position_found} zu processed_dart_positions hinzugefügt")
+                print(f"Position {new_position_found} added to processed_dart_positions")
             
             turn_complete = self.game_state.add_dart_score(score, description)
             
-            # Setze längeren Cooldown nach Score-Hinzufügung (wird in camera_loop auf 60 gesetzt)
-            print(f"Score hinzugefügt, Cooldown auf {self.dart_detection_cooldown}")
+    
+            print(f"Score added, cooldown to {self.dart_detection_cooldown}")
             
             if turn_complete:
-                print("process_detected_darts: Runde komplett, starte Board-Clearing-Pause")
-                # AKTIVIERE 10-Sekunden-Cooldown nach kompletter Runde
+                print("process_detected_darts: Round complete, start board-clearing pause")
+                # 10-second-cooldown after complete round
                 self.turn_complete_cooldown = self.turn_complete_cooldown_duration
                 self.board_empty_check_frames = 0
-                print(f"Turn-Complete-Cooldown aktiviert: {self.turn_complete_cooldown} Frames (10 Sekunden)")
-                # Setze Flag dass Runde bereit zum Abschluss ist, aber warte auf Cooldown-Ende
+                print(f"Turn-Complete-Cooldown activated: {self.turn_complete_cooldown} frames (10 seconds)")
+                # Set flag that round is ready to complete, but wait for cooldown to end
                 self.turn_ready_to_complete = True
             else:
-                print(f"process_detected_darts: Runde noch nicht komplett, warte auf weitere Darts")
+                print(f"process_detected_darts: Round not yet complete, wait for more darts")
             
             # Update displays
             self.root.after(0, self.update_all_displays)
             
-            # Lösche Detection-Cache nach kurzer Verzögerung
+            # Clear detection cache after short delay
             self.root.after(100, self.clear_dart_cache_after_processing)
             
         finally:
-            # Processing-Flag nach kurzer Verzögerung zurücksetzen
+            # Reset processing flag after short delay
             self.root.after(200, self.reset_processing_flag)
     
     def reset_processing_flag(self):
-        """Processing-Flag zurücksetzen."""
+        """Reset processing flag."""
         self._currently_processing_dart = False
-        print("Processing-Flag zurückgesetzt")
+        print("Processing flag reset")
     
     def complete_current_turn(self):
-        """Aktuelle Runde abschließen - wird nur aufgerufen wenn Cooldown abgelaufen ist."""
-        print("complete_current_turn: Schließe Runde ab (nach Cooldown)")
+        """Complete current turn - only called when cooldown has expired."""
+        print("complete_current_turn: Complete round (after cooldown)")
         
-        # Processing-Flag zurücksetzen
+        # Reset processing flag
         self._currently_processing_dart = False
         
         if self.game_state.winner:
-            print("complete_current_turn: Spiel beendet, es gibt einen Gewinner")
+            print("complete_current_turn: Game ended, there is a winner")
             self.end_game()
         else:
             self.game_state.complete_turn()
-            # Nach Rundenwechsel alle Dart-Positionen löschen
-            print(f"Rundenwechsel: Lösche {len(self.processed_dart_positions)} verarbeitete Dart-Positionen")
-            print(f"Rundenwechsel: Lösche {len(self.blacklisted_dart_positions)} blacklisted Dart-Positionen")
+            # After turn change delete all dart positions
+            print(f"Turn change: Delete {len(self.processed_dart_positions)} processed dart positions")
+            print(f"Turn change: Delete {len(self.blacklisted_dart_positions)} blacklisted dart positions")
             self.processed_dart_positions = []
-            self.blacklisted_dart_positions = []  # Blacklist bei Rundenwechsel löschen
-            self.reset_dart_detection_state()  # Kompletter Reset nach Rundenwechsel
+            self.blacklisted_dart_positions = []  # Clear blacklist on turn change
+            self.reset_dart_detection_state()  # Complete reset after turn change
             self.update_all_displays()
     
     def add_player(self):
-        """Neuen Spieler hinzufügen."""
-        name = simpledialog.askstring("Spieler hinzufügen", "Name des Spielers:")
+        """Add new player."""
+        name = simpledialog.askstring("Add Player", "Player name:")
         if name and name.strip():
             player = self.game_state.add_player(name.strip())
             self.create_player_widget(player)
-            self.update_status(f"Spieler {name} hinzugefügt")
+            self.update_status(f"Player {name} added")
             self.update_turn_display()
     
     def remove_selected_player(self):
-        """Ausgewählten Spieler entfernen."""
+        """Remove selected player."""
         if not self.game_state.players:
-            messagebox.showwarning("Warnung", "Keine Spieler vorhanden")
+            messagebox.showwarning("Warning", "No players available")
             return
         
         # Show dialog to select player
         names = [p.name for p in self.game_state.players]
-        selected = simpledialog.askstring("Spieler entfernen", f"Verfügbare Spieler: {', '.join(names)}\nName eingeben:")
+        selected = simpledialog.askstring("Remove Player", f"Available players: {', '.join(names)}\nEnter name:")
         
         if selected:
             for player in self.game_state.players:
                 if player.name == selected:
                     self.game_state.remove_player(player)
                     self.refresh_players_display()
-                    self.update_status(f"Spieler {selected} entfernt")
+                    self.update_status(f"Player {selected} removed")
                     self.update_turn_display()
                     return
-            messagebox.showwarning("Warnung", "Spieler nicht gefunden")
+            messagebox.showwarning("Warning", "Player not found")
     
     def create_player_widget(self, player: Player):
-        """Player Widget erstellen."""
+        """Create player widget."""
         # Remove existing widget if any
         if player.id in self.player_frames:
             self.player_frames[player.id].destroy()
@@ -1056,7 +1053,7 @@ class DartsGUI:
         name_label.pack(side='left')
         
         # Current score
-        score_label = tk.Label(header_frame, text=f"Punkte: {player.current_score}", 
+        score_label = tk.Label(header_frame, text=f"Points: {player.current_score}", 
                               font=('Arial', 14, 'bold'), 
                               fg='#E74C3C', bg='#2C3E50')
         score_label.pack(side='right')
@@ -1064,13 +1061,12 @@ class DartsGUI:
         # Stats frame
         stats_frame = tk.Frame(player_frame, bg='#2C3E50')
         stats_frame.pack(fill='x', padx=10, pady=5)
-        
-        # Statistics
+    
         darts_label = tk.Label(stats_frame, text=f"Darts: {player.darts_thrown}", 
                               font=('Arial', 10), fg='#BDC3C7', bg='#2C3E50')
         darts_label.pack(side='left')
         
-        avg_label = tk.Label(stats_frame, text=f"Durchschnitt: {player.get_average()*3:.1f}", 
+        avg_label = tk.Label(stats_frame, text=f"Average: {player.get_average()*3:.1f}", 
                             font=('Arial', 10), fg='#BDC3C7', bg='#2C3E50')
         avg_label.pack(side='right')
         
@@ -1081,7 +1077,7 @@ class DartsGUI:
             turn_frame.pack(fill='x', padx=10, pady=5)
             
             turn_label = tk.Label(turn_frame, 
-                                 text=f"Aktuelle Runde: {' + '.join(map(str, self.game_state.current_turn_scores))}", 
+                                 text=f"Current Round: {' + '.join(map(str, self.game_state.current_turn_scores))}", 
                                  font=('Arial', 12), fg='#F39C12', bg='#2C3E50')
             turn_label.pack()
         
@@ -1096,7 +1092,7 @@ class DartsGUI:
         self.player_frames[player.id] = player_frame
     
     def refresh_players_display(self):
-        """Spieler-Anzeige aktualisieren."""
+        """Update player display."""
         # Clear all player widgets
         for widget in self.player_frames.values():
             widget.destroy()
@@ -1107,78 +1103,78 @@ class DartsGUI:
             self.create_player_widget(player)
     
     def update_all_displays(self):
-        """Alle Anzeigen aktualisieren."""
+        """Update all displays."""
         self.refresh_players_display()
         self.update_turn_display()
     
     def update_turn_display(self):
-        """Runden-Anzeige aktualisieren."""
+        """Update turn display."""
         if self.turn_complete_cooldown > 0:
-            # Berechne verbleibende Sekunden
-            remaining_seconds = self.turn_complete_cooldown / 30  # 30 FPS
+            # Calculate remaining seconds
+            remaining_seconds = self.turn_complete_cooldown / 30 
             if remaining_seconds > 1.0:
-                self.turn_info_var.set(f"⏳ Wartepause - Board leeren! ({remaining_seconds:.1f}s)")
+                self.turn_info_var.set(f"Waiting pause - Clear board! ({remaining_seconds:.1f}s)")
             else:
-                self.turn_info_var.set(f"⏳ Wartepause - Board leeren! (0.{int(remaining_seconds*10)}s)")
+                self.turn_info_var.set(f"Waiting pause - Clear board! (0.{int(remaining_seconds*10)}s)")
             
-            # Deaktiviere relevante Buttons während Cooldown
+            # Disable relevant buttons during cooldown
             if hasattr(self, 'next_turn_btn'):
                 self.next_turn_btn.configure(state='disabled')
                 
         elif self.game_state.players and self.game_state.game_active:
             current = self.game_state.get_current_player()
             dart_info = f"Dart {self.game_state.current_dart_count + 1}/3" if current else ""
-            self.turn_info_var.set(f"{current.name} ist dran - {dart_info}")
+            self.turn_info_var.set(f"{current.name} is up - {dart_info}")
             
-            # Reaktiviere Buttons wenn kein Cooldown
+            # Reactivate buttons when no cooldown
             if hasattr(self, 'next_turn_btn'):
                 self.next_turn_btn.configure(state='normal')
                 
         elif self.game_state.players:
-            self.turn_info_var.set(f"{len(self.game_state.players)} Spieler bereit - Spiel starten")
+            self.turn_info_var.set(f"{len(self.game_state.players)} players ready - Start game")
             if hasattr(self, 'next_turn_btn'):
                 self.next_turn_btn.configure(state='normal')
         else:
-            self.turn_info_var.set("Spieler hinzufügen zum Starten")
+            self.turn_info_var.set("Add players to start")
             if hasattr(self, 'next_turn_btn'):
                 self.next_turn_btn.configure(state='normal')
     
     def new_game(self):
-        """Neues Spiel starten."""
+        """Start new game."""
         if len(self.game_state.players) < 2:
-            messagebox.showwarning("Warnung", "Mindestens 2 Spieler erforderlich")
+            messagebox.showwarning("Warning", "At least 2 players required")
             return
         
-        result = messagebox.askyesno("Neues Spiel", "Neues Spiel starten?")
+        result = messagebox.askyesno("New Game", "Start new game?")
         if result:
-            # Reset aller Flags bei neuem Spiel
+            # Reset all flags for new game
             self.turn_ready_to_complete = False
             self.turn_complete_cooldown = 0
             self.board_empty_check_frames = 0
-            self.blacklisted_dart_positions = []  # Blacklist bei neuem Spiel löschen
+            self.blacklisted_dart_positions = []  # Clear blacklist for new game
             self.reset_dart_detection_state()
             
             self.game_state.start_game()
-            self.update_status("Neues Spiel gestartet!")
+            self.update_status("New game started!")
             self.update_all_displays()
     
     def next_turn(self):
-        """Zur nächsten Runde wechseln."""
+        """Switch to next turn."""
         if not self.game_state.game_active:
             return
         
-        # Prüfe Turn-Complete-Cooldown auch für manuellen Rundenwechsel
+        # Check turn-complete-cooldown also for manual turn change
         if self.turn_complete_cooldown > 0:
             remaining_seconds = self.turn_complete_cooldown / 30
-            messagebox.showwarning("Warnung", f"Board muss erst geleert werden! Noch {remaining_seconds:.1f} Sekunden warten.")
+            messagebox.showwarning("Warning", f"Board must be cleared first! Wait {remaining_seconds:.1f} more seconds.")
             return
         
-        # Reset dart detection state bei Rundenwechsel
+        # Reset dart detection state on turn change
         self.reset_dart_detection_state()
-        self.blacklisted_dart_positions = []  # Blacklist bei Rundenwechsel löschen
-        self.turn_ready_to_complete = False  # Reset Flag bei manuellem Rundenwechsel
-        print("Nächste Runde - Dart-Detection-State zurückgesetzt")
-        print(f"Nächste Runde - Blacklist geleert")
+        self.blacklisted_dart_positions = []  # Clear blacklist on turn change
+        self.turn_ready_to_complete = False  # Reset flag on manual turn change
+        print("Next round - Dart detection state reset")
+        print(f"Next round - Blacklist cleared")
         
         self.game_state.complete_turn()
         if self.game_state.winner:
@@ -1187,65 +1183,63 @@ class DartsGUI:
             self.update_all_displays()
     
     def undo_last_dart(self):
-        """Letzten Dart rückgängig machen."""
+        """Undo last dart."""
         if not self.game_state.game_active:
-            messagebox.showwarning("Warnung", "Kein aktives Spiel!")
+            messagebox.showwarning("Warning", "No active game!")
             return
             
-        # Rückgängig ist IMMER erlaubt, auch während Board-Clearing-Pause
-        # Das ist der ganze Sinn der Pause - Zeit für Korrekturen zu haben
+        # Undo is allowed even during board-clearing pause
             
         if self.game_state.current_dart_count > 0:
-            # Merke ob wir vom dritten Dart zurückgehen (für spezielle Behandlung)
+            # Note if we're going back from the third dart
             was_third_dart = (self.game_state.current_dart_count == 3)
             
-            # Reset entsprechende Detection-States wenn ein Dart rückgängig gemacht wird
+            # Reset corresponding detection states when a dart is undone
             removed_position = None
             if self.processed_dart_positions:
                 removed_position = self.processed_dart_positions.pop()
-                print(f"Rückgängig: Entferne Position {removed_position} aus processed_dart_positions")
+                print(f"Undo: Remove position {removed_position} from processed_dart_positions")
                 
-                # WICHTIG: Füge die Position zur Blacklist hinzu für den gesamten Zug
+                # Add the position to the blacklist for the entire turn
                 self.blacklisted_dart_positions.append(removed_position)
-                print(f"Rückgängig: Füge Position {removed_position} zur Blacklist hinzu")
-                print(f"Blacklisted Positionen: {len(self.blacklisted_dart_positions)}")
+                print(f"Undo: Add position {removed_position} to blacklist")
+                print(f"Blacklisted positions: {len(self.blacklisted_dart_positions)}")
             
-            # KRITISCH: Entferne die entsprechende Position aus last_dart_positions und last_dart_scores
-            # Finde die Position, die der entfernten processed_position entspricht
+            # Remove the corresponding position from last_dart_positions and last_dart_scores
+            # Find the position that corresponds to the removed processed_position
             if removed_position and self.last_dart_positions:
-                # Suche die entsprechende Position in last_dart_positions
+                # Search for the corresponding position in last_dart_positions
                 for i, pos in enumerate(self.last_dart_positions):
                     if self.are_positions_similar(pos, removed_position, self.dart_position_tolerance):
                         removed_cached_position = self.last_dart_positions.pop(i)
-                        print(f"Rückgängig: Entferne auch Position {removed_cached_position} aus last_dart_positions (Index {i})")
+                        print(f"Undo: Also remove position {removed_cached_position} from last_dart_positions (Index {i})")
                         if i < len(self.last_dart_scores):
                             removed_cached_score = self.last_dart_scores.pop(i)
-                            print(f"Rückgängig: Entferne auch Score {removed_cached_score} aus last_dart_scores (Index {i})")
+                            print(f"Undo: Also remove score {removed_cached_score} from last_dart_scores (Index {i})")
                         break
                 else:
-                    print(f"Rückgängig: Konnte Position {removed_position} nicht in last_dart_positions finden")
+                    print(f"Undo: Could not find position {removed_position} in last_dart_positions")
             
-            # WICHTIG: Wenn wir vom dritten Dart zurückgehen, deaktiviere Turn-Complete-Cooldown
             if was_third_dart:
-                print("Rückgängig vom dritten Dart: Deaktiviere Turn-Complete-Cooldown und Flags")
+                print("Undo from third dart: Disable Turn-Complete-Cooldown and flags")
                 self.turn_complete_cooldown = 0
                 self.turn_ready_to_complete = False
                 self.board_empty_check_frames = 0
-                print(f"Turn-Complete-Cooldown deaktiviert, Zug ist wieder unvollständig")
+                print(f"Turn-Complete-Cooldown disabled, turn is incomplete again")
             
-            # Reset Turn-Ready-Flag generell bei Rückgängig
+            # Reset Turn-Ready-Flag generally on undo
             if self.turn_ready_to_complete:
-                print("Rückgängig: Reset turn_ready_to_complete")
+                print("Undo: Reset turn_ready_to_complete")
                 self.turn_ready_to_complete = False
             
             self.game_state.undo_last_dart()
             self.update_all_displays()
-            self.update_status("Letzter Dart rückgängig gemacht")
+            self.update_status("Last dart undone")
         else:
-            messagebox.showinfo("Information", "Kein Dart zum Rückgängigmachen vorhanden")
+            messagebox.showinfo("Information", "No dart available to undo")
     
     def add_manual_score(self):
-        """Manuelle Punktzahl hinzufügen."""
+        """Add manual score."""
         try:
             score_text = self.manual_score_var.get().strip()
             if not score_text:
@@ -1253,123 +1247,123 @@ class DartsGUI:
             
             score = int(score_text)
             if score < 0 or score > 180:
-                messagebox.showerror("Fehler", "Punktzahl muss zwischen 0 und 180 liegen")
+                messagebox.showerror("Error", "Score must be between 0 and 180")
                 return
             
-            # Prüfe ob Spiel aktiv ist und ob wir einen aktuellen Spieler haben
+            # Check if game is active and if we have a current player
             if not self.game_state.game_active:
-                messagebox.showwarning("Warnung", "Bitte zuerst ein Spiel starten!")
+                messagebox.showwarning("Warning", "Please start a game first!")
                 return
             
             current_player = self.game_state.get_current_player()
             if not current_player:
-                messagebox.showwarning("Warnung", "Kein aktiver Spieler!")
+                messagebox.showwarning("Warning", "No active player!")
                 return
             
-            # Prüfe Turn-Complete-Cooldown (gleiche Logik wie bei automatischer Erkennung)
+            # Check turn-complete-cooldown 
             if self.turn_complete_cooldown > 0:
                 remaining_seconds = self.turn_complete_cooldown / 30
-                messagebox.showwarning("Warnung", f"Board muss erst geleert werden! Noch {remaining_seconds:.1f} Sekunden warten.")
+                messagebox.showwarning("Warning", f"Board must be cleared first! Wait {remaining_seconds:.1f} more seconds.")
                 return
             
-            # Debug-Ausgabe
-            print(f"Füge manuell {score} Punkte für {current_player.name} hinzu")
+            # Debug output
+            print(f"Add manually {score} points for {current_player.name}")
             
-            turn_complete = self.game_state.add_dart_score(score, f"Manuell: {score}")
+            turn_complete = self.game_state.add_dart_score(score, f"Manual: {score}")
             
-            # Gleiche Behandlung wie bei automatischer Erkennung
+            # Same treatment as automatic detection
             if turn_complete:
-                print("add_manual_score: Runde komplett, starte Board-Clearing-Pause")
-                # AKTIVIERE 10-Sekunden-Cooldown nach kompletter Runde (gleich wie bei Auto-Erkennung)
+                print("add_manual_score: Round complete, start board-clearing pause")
+                # 10-second-cooldown after complete round
                 self.turn_complete_cooldown = self.turn_complete_cooldown_duration
                 self.board_empty_check_frames = 0
-                print(f"Turn-Complete-Cooldown aktiviert: {self.turn_complete_cooldown} Frames (10 Sekunden)")
-                # Setze Flag dass Runde bereit zum Abschluss ist, aber warte auf Cooldown-Ende
+                print(f"Turn-Complete-Cooldown activated: {self.turn_complete_cooldown} frames (10 seconds)")
+                # Set flag that round is ready to complete, but wait for cooldown to end
                 self.turn_ready_to_complete = True
             else:
-                print(f"add_manual_score: Runde noch nicht komplett, warte auf weitere Darts")
+                print(f"add_manual_score: Round not yet complete, wait for more darts")
             
             self.manual_score_var.set("")
             self.update_all_displays()
-            self.update_status(f"Punkte {score} für {current_player.name} hinzugefügt")
+            self.update_status(f"Points {score} added for {current_player.name}")
             
         except ValueError:
-            messagebox.showerror("Fehler", "Bitte gültige Zahl eingeben")
+            messagebox.showerror("Error", "Please enter a valid number")
     
     def end_game(self):
-        """Spiel beenden."""
+        """End game."""
         winner = self.game_state.winner
         if winner:
-            messagebox.showinfo("Spiel beendet!", f"🎉 {winner.name} hat gewonnen! 🎉")
+            messagebox.showinfo("Game Over!", f"🎉 {winner.name} has won! 🎉")
             self.game_state.game_active = False
-            self.update_status(f"Spiel beendet - Gewinner: {winner.name}")
+            self.update_status(f"Game over - Winner: {winner.name}")
             self.update_all_displays()
     
     def calibrate_dartboard(self):
-        """Dartboard manuell kalibrieren."""
+        """Manually calibrate dartboard."""
         if not self.camera_running:
-            messagebox.showwarning("Warnung", "Bitte zuerst Kamera starten")
+            messagebox.showwarning("Warning", "Please start camera first")
             return
         
         # Get current frame for calibration
         if not self.camera:
-            messagebox.showerror("Fehler", "Kamera nicht verfügbar")
+            messagebox.showerror("Error", "Camera not available")
             return
         
         try:
-            # Hole aktuellen Frame
+            # Get current frame
             current_frame = self.camera.get_frame_raw()
             if current_frame is None:
-                messagebox.showerror("Fehler", "Kann keinen Frame von der Kamera abrufen")
+                messagebox.showerror("Error", "Cannot get frame from camera")
                 return
             
             # Reset calibration status
             self.dartboard_calibrated = False
-            self.dartboard_status_var.set("Dartboard: Kalibrierung läuft...")
-            self.update_status("Starte manuelle Dartboard-Kalibrierung...")
+            self.dartboard_status_var.set("Dartboard: Calibration running...")
+            self.update_status("Starting manual dartboard calibration...")
             
-            # Versuche Kalibrierung mit aktuellem Frame
+            # Try calibration with current frame
             success, result = self.calibration.initial_calibration(current_frame)
             
             if success:
                 self.dartboard_calibrated = True
-                self.dartboard_status_var.set("Dartboard: Kalibriert ✓")
-                self.update_status("Dartboard erfolgreich kalibriert!")
+                self.dartboard_status_var.set("Dartboard: Calibrated ✓")
+                self.update_status("Dartboard successfully calibrated!")
                 
-                # Reset score predictor für neue Kalibrierung
+                # Reset score predictor for new calibration
                 self.score_predictor = score_prediction.DartboardScorePredictor()
                 
                 messagebox.showinfo(
-                    "Erfolg", 
-                    "Dartboard wurde erfolgreich kalibriert!\n\n"
-                    "Alle folgenden Frames werden nun automatisch transformiert."
+                    "Success", 
+                    "Dartboard was successfully calibrated!\n\n"
+                    "All following frames will now be automatically transformed."
                 )
             else:
                 self.dartboard_calibrated = False
-                self.dartboard_status_var.set("Dartboard: Kalibrierung fehlgeschlagen")
-                self.update_status("Dartboard-Kalibrierung fehlgeschlagen")
+                self.dartboard_status_var.set("Dartboard: Calibration failed")
+                self.update_status("Dartboard calibration failed")
                 
                 messagebox.showwarning(
-                    "Kalibrierung fehlgeschlagen", 
-                    "Die Dartboard konnte nicht kalibriert werden.\n\n"
-                    "Stellen Sie sicher, dass:\n"
-                    "• Die Dartboard vollständig im Bild sichtbar ist\n"
-                    "• Das Referenzbild verfügbar ist\n"
-                    "• Genügend markante Punkte erkannt werden\n\n"
-                    "Versuchen Sie es erneut mit besserer Positionierung."
+                    "Calibration failed", 
+                    "The dartboard could not be calibrated.\n\n"
+                    "Make sure that:\n"
+                    "• The dartboard is fully visible in the image\n"
+                    "• The reference image is available\n"
+                    "• Sufficient distinctive points are detected\n\n"
+                    "Try again with better positioning."
                 )
                 
         except Exception as e:
             self.dartboard_calibrated = False
-            self.dartboard_status_var.set("Dartboard: Kalibrierungsfehler")
-            error_msg = f"Fehler bei der Kalibrierung: {e}"
+            self.dartboard_status_var.set("Dartboard: Calibration error")
+            error_msg = f"Error during calibration: {e}"
             self.update_status(error_msg)
-            messagebox.showerror("Kalibrierungsfehler", error_msg)
+            messagebox.showerror("Calibration error", error_msg)
     
     def reset_calibration(self):
-        """Kalibrierung zurücksetzen."""
+        """Reset calibration."""
         self.dartboard_calibrated = False
-        self.dartboard_status_var.set("Dartboard: Nicht kalibriert")
+        self.dartboard_status_var.set("Dartboard: Not calibrated")
         
         # Reset calibration matrix
         if self.calibration:
@@ -1378,39 +1372,39 @@ class DartsGUI:
         # Reset score predictor
         self.score_predictor = score_prediction.DartboardScorePredictor()
         
-        self.update_status("Kalibrierung zurückgesetzt")
-        messagebox.showinfo("Kalibrierung zurückgesetzt", "Die Dartboard-Kalibrierung wurde zurückgesetzt.")
+        self.update_status("Calibration reset")
+        messagebox.showinfo("Calibration reset", "The dartboard calibration has been reset.")
     
     def update_status(self, message: str):
-        """Status-Nachricht aktualisieren."""
+        """Update status message."""
         self.status_var.set(message)
         print(f"Status: {message}")
     
     def save_game(self):
-        """Spiel speichern."""
+        """Save game."""
         if not self.game_state.players:
-            messagebox.showwarning("Warnung", "Keine Spieler vorhanden")
+            messagebox.showwarning("Warning", "No players available")
             return
         
         filename = filedialog.asksaveasfilename(
             defaultextension=".json",
             filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            title="Spiel speichern"
+            title="Save game"
         )
         
         if filename:
             try:
                 self.game_state.save_game(filename)
-                self.update_status(f"Spiel gespeichert: {filename}")
-                messagebox.showinfo("Erfolg", "Spiel erfolgreich gespeichert!")
+                self.update_status(f"Game saved: {filename}")
+                messagebox.showinfo("Success", "Game successfully saved!")
             except Exception as e:
-                messagebox.showerror("Fehler", f"Fehler beim Speichern: {e}")
+                messagebox.showerror("Error", f"Error saving: {e}")
     
     def load_game(self):
-        """Spiel laden."""
+        """Load game."""
         filename = filedialog.askopenfilename(
             filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            title="Spiel laden"
+            title="Load game"
         )
         
         if filename:
@@ -1418,20 +1412,20 @@ class DartsGUI:
                 self.game_state.load_game(filename)
                 self.refresh_players_display()
                 self.update_turn_display()
-                self.update_status(f"Spiel geladen: {filename}")
-                messagebox.showinfo("Erfolg", "Spiel erfolgreich geladen!")
+                self.update_status(f"Game loaded: {filename}")
+                messagebox.showinfo("Success", "Game successfully loaded!")
             except Exception as e:
-                messagebox.showerror("Fehler", f"Fehler beim Laden: {e}")
+                messagebox.showerror("Error", f"Error loading: {e}")
     
     def camera_settings(self):
-        """Kamera-Einstellungen Dialog."""
+        """Camera settings dialog."""
         dialog = tk.Toplevel(self.root)
-        dialog.title("Kamera-Einstellungen")
+        dialog.title("Camera Settings")
         dialog.geometry("400x300")
         dialog.configure(bg='#34495E')
         
         # Camera source selection
-        tk.Label(dialog, text="Kamera-Quelle:", font=('Arial', 12, 'bold'),
+        tk.Label(dialog, text="Camera Source:", font=('Arial', 12, 'bold'),
                 fg='white', bg='#34495E').pack(pady=10)
         
         source_var = tk.StringVar(value="webcam" if not self.use_image_folder else "folder")
@@ -1441,7 +1435,7 @@ class DartsGUI:
                                      fg='white', bg='#34495E', selectcolor='#2C3E50')
         webcam_radio.pack()
         
-        folder_radio = tk.Radiobutton(dialog, text="Bildordner", variable=source_var, 
+        folder_radio = tk.Radiobutton(dialog, text="Image Folder", variable=source_var, 
                                      value="folder", font=('Arial', 11),
                                      fg='white', bg='#34495E', selectcolor='#2C3E50')
         folder_radio.pack()
@@ -1455,14 +1449,14 @@ class DartsGUI:
         webcam_entry.pack()
         
         # Image folder path
-        tk.Label(dialog, text="Bildordner Pfad:", font=('Arial', 11),
+        tk.Label(dialog, text="Image Folder Path:", font=('Arial', 11),
                 fg='white', bg='#34495E').pack(pady=(20, 5))
         
         folder_var = tk.StringVar(value=self.image_folder_path)
         folder_entry = tk.Entry(dialog, textvariable=folder_var, font=('Arial', 11), width=40)
         folder_entry.pack()
         
-        browse_btn = tk.Button(dialog, text="Durchsuchen", 
+        browse_btn = tk.Button(dialog, text="Browse", 
                               command=lambda: self.browse_folder(folder_var),
                               bg='#3498DB', fg='white')
         browse_btn.pack(pady=5)
@@ -1476,31 +1470,31 @@ class DartsGUI:
             self.camera_source = int(webcam_var.get()) if webcam_var.get().isdigit() else 0
             self.image_folder_path = folder_var.get()
             dialog.destroy()
-            self.update_status("Kamera-Einstellungen aktualisiert")
+            self.update_status("Camera settings updated")
         
-        apply_btn = tk.Button(button_frame, text="Anwenden", command=apply_settings,
+        apply_btn = tk.Button(button_frame, text="Apply", command=apply_settings,
                              bg='#27AE60', fg='white', font=('Arial', 11))
         apply_btn.pack(side='left', padx=5)
         
-        cancel_btn = tk.Button(button_frame, text="Abbrechen", command=dialog.destroy,
+        cancel_btn = tk.Button(button_frame, text="Cancel", command=dialog.destroy,
                               bg='#E74C3C', fg='white', font=('Arial', 11))
         cancel_btn.pack(side='left', padx=5)
     
     def browse_folder(self, folder_var):
-        """Ordner durchsuchen."""
-        folder = filedialog.askdirectory(title="Bildordner auswählen")
+        """Browse folder."""
+        folder = filedialog.askdirectory(title="Select image folder")
         if folder:
             folder_var.set(folder)
     
     def game_settings(self):
-        """Spiel-Einstellungen Dialog."""
+        """Game settings dialog."""
         dialog = tk.Toplevel(self.root)
-        dialog.title("Spiel-Einstellungen")
+        dialog.title("Game Settings")
         dialog.geometry("350x250")
         dialog.configure(bg='#34495E')
         
         # Game mode
-        tk.Label(dialog, text="Spielmodus:", font=('Arial', 12, 'bold'),
+        tk.Label(dialog, text="Game Mode:", font=('Arial', 12, 'bold'),
                 fg='white', bg='#34495E').pack(pady=10)
         
         mode_var = tk.StringVar(value=self.game_state.game_mode)
@@ -1510,13 +1504,13 @@ class DartsGUI:
         
         # Auto advance
         auto_var = tk.BooleanVar(value=self.game_state.auto_advance)
-        auto_check = tk.Checkbutton(dialog, text="Automatisch zur nächsten Runde", 
+        auto_check = tk.Checkbutton(dialog, text="Automatically advance to next round", 
                                    variable=auto_var, font=('Arial', 11),
                                    fg='white', bg='#34495E', selectcolor='#2C3E50')
         auto_check.pack(pady=10)
         
         # Legs to win
-        tk.Label(dialog, text="Legs zum Gewinnen:", font=('Arial', 11),
+        tk.Label(dialog, text="Legs to win:", font=('Arial', 11),
                 fg='white', bg='#34495E').pack(pady=(10, 5))
         
         legs_var = tk.StringVar(value=str(self.game_state.legs_to_win))
@@ -1535,56 +1529,56 @@ class DartsGUI:
             except ValueError:
                 pass
             dialog.destroy()
-            self.update_status("Spiel-Einstellungen aktualisiert")
+            self.update_status("Game settings updated")
         
-        apply_btn = tk.Button(button_frame, text="Anwenden", command=apply_settings,
+        apply_btn = tk.Button(button_frame, text="Apply", command=apply_settings,
                              bg='#27AE60', fg='white', font=('Arial', 11))
         apply_btn.pack(side='left', padx=5)
         
-        cancel_btn = tk.Button(button_frame, text="Abbrechen", command=dialog.destroy,
+        cancel_btn = tk.Button(button_frame, text="Cancel", command=dialog.destroy,
                               bg='#E74C3C', fg='white', font=('Arial', 11))
         cancel_btn.pack(side='left', padx=5)
     
     def toggle_debug(self):
-        """Debug-Modus umschalten."""
+        """Toggle debug mode."""
         self.debug_mode = not self.debug_mode
-        status = "aktiviert" if self.debug_mode else "deaktiviert"
-        self.update_status(f"Debug-Modus {status}")
-        messagebox.showinfo("Debug-Modus", f"Debug-Modus {status}")
+        status = "enabled" if self.debug_mode else "disabled"
+        self.update_status(f"Debug mode {status}")
+        messagebox.showinfo("Debug Mode", f"Debug mode {status}")
     
     def run(self):
-        """GUI ausführen."""
+        """Run GUI."""
         self.root.mainloop()
     
     def on_closing(self):
-        """Beim Schließen der Anwendung."""
+        """On application closing."""
         self.stop_camera()
         self.root.destroy()
     
     def are_positions_similar(self, pos1: Tuple[int, int], pos2: Tuple[int, int], tolerance: int = 30) -> bool:
-        """Prüft ob zwei Positionen ähnlich genug sind (gleicher Dart)."""
+        """Check if two positions are similar enough (same dart)."""
         distance = math.sqrt((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)
         return distance <= tolerance
     
     def filter_duplicate_darts(self, dart_positions: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
-        """Filtert doppelte/ähnliche Dart-Positionen heraus."""
+        """Filter duplicate/similar dart positions."""
         if not dart_positions:
             return []
         
         filtered_positions = []
         
         for pos in dart_positions:
-            # ERST prüfen ob Position auf der Blacklist steht
+            # Check if position is on blacklist
             is_blacklisted = any(
                 self.are_positions_similar(pos, blacklisted_pos, self.dart_position_tolerance)
                 for blacklisted_pos in self.blacklisted_dart_positions
             )
             
             if is_blacklisted:
-                print(f"Position {pos} ist blacklisted, ignoriere für gesamten Zug")
+                print(f"Position {pos} is blacklisted, ignore for entire turn")
                 continue
             
-            # Prüfe ob diese Position zu ähnlich zu bereits gefilterten ist
+            # Check if this position is too similar to already filtered ones
             is_duplicate = False
             for existing_pos in filtered_positions:
                 if self.are_positions_similar(pos, existing_pos, self.dart_position_tolerance):
@@ -1597,25 +1591,25 @@ class DartsGUI:
         return filtered_positions
     
     def should_process_dart_detection(self, dart_positions: List[Tuple[int, int]]) -> bool:
-        """Entscheidet ob Dart-Detection verarbeitet werden soll (Anti-Spam)."""
-        print(f"should_process_dart_detection: Input {len(dart_positions)} Dart-Positionen")
+        """Decide if dart detection should be processed (anti-spam)."""
+        print(f"should_process_dart_detection: Input {len(dart_positions)} dart positions")
         
-        # Turn-Complete-Cooldown check (wichtiger als normaler Cooldown)
+        # Turn-Complete-Cooldown check
         if self.turn_complete_cooldown > 0:
-            print(f"  Turn-Complete-Cooldown aktiv: {self.turn_complete_cooldown} Frames")
+            print(f"  Turn-Complete-Cooldown active: {self.turn_complete_cooldown} Frames")
             return False
         
-        # Normaler Cooldown check
+        # Normal cooldown check
         if self.dart_detection_cooldown > 0:
-            print(f"  Cooldown aktiv: {self.dart_detection_cooldown}")
+            print(f"  Cooldown active: {self.dart_detection_cooldown}")
             return False
         
-        # Keine Darts erkannt
+        # No darts detected
         if not dart_positions:
-            print(f"  Keine Dart-Positionen")
+            print(f"  No dart positions")
             return False
         
-        # Einfache Duplikat-Prüfung: Prüfe nur gegen bereits verarbeitete Positionen
+        # Check only against already processed positions
         new_positions = []
         for pos in dart_positions:
             is_already_processed = any(
@@ -1625,32 +1619,32 @@ class DartsGUI:
             if not is_already_processed:
                 new_positions.append(pos)
         
-        print(f"  Neue Positionen: {len(new_positions)} von {len(dart_positions)}")
+        print(f"  New positions: {len(new_positions)} of {len(dart_positions)}")
         
-        # Nur verarbeiten wenn wir NEUE Positionen haben
+        # Only process if we have new positions
         if len(new_positions) > 0:
-            print(f"  ✓ Neue Dart-Positionen gefunden: {len(new_positions)}")
+            print(f"  ✓ New dart positions found: {len(new_positions)}")
             return True
         
-        # Keine neuen Positionen
-        print(f"  ✗ Keine neuen Positionen")
+        # No new positions
+        print(f"  ✗ No new positions")
         return False
     
     def reset_dart_detection_state(self):
-        """Setzt den Dart-Detection-Zustand zurück."""
-        print(f"reset_dart_detection_state: Lösche {len(self.last_dart_positions)} last_dart_positions, {len(self.processed_dart_positions)} processed_dart_positions")
+        """Reset dart detection state."""
+        print(f"reset_dart_detection_state: Delete {len(self.last_dart_positions)} last_dart_positions, {len(self.processed_dart_positions)} processed_dart_positions")
         self.last_dart_positions = []
         self.processed_dart_positions = []
-        # WICHTIG: Blacklist wird NICHT hier gelöscht, nur bei Rundenwechsel!
+        
         self.last_dart_scores = []
         self.dart_detection_cooldown = 0
     
     def clear_dart_cache_after_processing(self):
-        """Löscht den Dart-Cache nach Verarbeitung, um doppelte Zählungen zu verhindern."""
-        print("Lösche Dart-Cache nach Verarbeitung")
-        print(f"  Vor dem Löschen: last_dart_positions={len(self.last_dart_positions)}, processed={len(self.processed_dart_positions)}")
+        """Clear dart cache after processing to prevent double counting."""
+        print("Clear dart cache after processing")
+        print(f"  Before clearing: last_dart_positions={len(self.last_dart_positions)}, processed={len(self.processed_dart_positions)}")
         
-        # Behalte last_dart_positions für die Anzeige, lösche nur wenn alle verarbeitet wurden
+        # Keep last_dart_positions for display, only clear when all have been processed
         all_positions_processed = True
         if self.last_dart_positions:
             for pos in self.last_dart_positions:
@@ -1663,13 +1657,13 @@ class DartsGUI:
                     break
         
         if all_positions_processed and self.last_dart_positions:
-            print("  Alle Positionen verarbeitet - lösche Anzeige-Cache")
+            print("  All positions processed - clear display cache")
             self.last_dart_positions = []
             self.last_dart_scores = []
         else:
-            print(f"  Noch unverarbeitete Positionen - behalte Anzeige-Cache")
+            print(f"  Still unprocessed positions - keep display cache")
         
-        print(f"  Nach dem Löschen: last_dart_positions={len(self.last_dart_positions)}, processed_dart_positions={len(self.processed_dart_positions)}")
+        print(f"  After clearing: last_dart_positions={len(self.last_dart_positions)}, processed_dart_positions={len(self.processed_dart_positions)}")
 
 if __name__ == "__main__":
     # Start the Darts GUI application
