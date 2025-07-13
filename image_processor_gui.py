@@ -26,11 +26,11 @@ class ImageProcessorGUI:
     
     def __init__(self):
         # Pfade
-        self.input_folder = r"C:\Users\CARLO\OneDrive\Desktop\Darts\klassifikation_helligkeit\besondere_belichtung"
-        self.output_base_folder = r"C:\Users\CARLO\OneDrive\Desktop\Darts\processed_images_helligkeit_yolo11n-al2-stg3.pt"
+        self.input_folder = r"C:\Users\CARLO\OneDrive\Desktop\Darts\klassifikation_dunkel\besondere_belichtung"
+        self.output_base_folder = r"C:\Users\CARLO\OneDrive\Desktop\Darts\processed_images_dunkel_yolo8n-pretrained-al2-stg3.pt"
         
         # Verarbeitungsklassen
-        self.predictor = Predictor("models/yolo11n-al2-stg3.pt")  # Anpassung des Modellpfads
+        self.predictor = Predictor("models/yolo8n-pretrained-al2-stg3.pt")  # Anpassung des Modellpfads
         self.score_predictor = DartboardScorePredictor()
         
         # GUI-Variablen
