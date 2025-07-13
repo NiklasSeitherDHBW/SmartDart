@@ -6,13 +6,13 @@ import os
 
 def create_dataset_yaml():
     """Create dataset configuration file for YOLO training"""
-    # Correct class mapping according to user input
+    # Correct class mapping
     classes = {0: "20", 1: "3", 2: "11", 3: "6", 4: "dart", 5: "9", 6: "15"}
 
     dataset_config = {
         "path": str(
             Path("training") / "data" / "train"
-        ),  # Point to train folder
+        ), 
         "train": "images/train",  # Images subfolder
         "val": "images/val",  # Using same data for validation
         "nc": len(classes),
@@ -29,7 +29,7 @@ def create_dataset_yaml():
 
 def setup_yolo_structure():
     """Create proper YOLO folder structure"""
-    # Create directories
+    
     train_images = Path("training/data/train/images")
     train_labels = Path("training/data/train/labels")
 

@@ -26,7 +26,7 @@ if __name__ == "__main__":
             print("Failed to grab frame")
             break
 
-        cropped_frame = frame#[y1:y2, x1:x2]
+        cropped_frame = frame
         cv2.imshow("Cropped Frame", cropped_frame)
 
         key = cv2.waitKey(1) & 0xFF
